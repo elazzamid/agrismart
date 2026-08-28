@@ -2,7 +2,7 @@ name: AgriSmart CI
 
 on:
   push:
-    branches: [main, 'foundation/**']
+    branches: [main, 'foundation/**', 'feature/**']
   pull_request:
     branches: [main]
 
@@ -41,3 +41,30 @@ jobs:
       - name: Stop PostgreSQL
         if: always()
         run: docker compose down -v
+
+  backend:
+    name: Backend tests and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./cmd/api
