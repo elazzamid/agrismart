@@ -1,2 +1,2 @@
-golang.org/x/crypto v0.27.0 h1:QXwK9KfT5KqR6oW9h2Y2HjvV8rP4gX7cN0n6f7x8m9A=
-golang.org/x/crypto v0.27.0/go.mod h1:8d1m8h1JwJ8QY0v5QW4l4QxYf3sW2zV1u0t9r8q7p6o=
+golang.org/x/crypto v0.27.0 h1:GXm2NjJrPaiv/h1tb2UH8QfgC/hOf/+z0p6PT8o1w7A=
+golang.org/x/crypto v0.27.0/go.mod h1:1Xngt8kV6Dvbssa53Ziq6Eqn0HqbZi5Z6R0ZpwQzt70=
