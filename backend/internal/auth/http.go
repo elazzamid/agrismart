@@ -41,9 +41,10 @@ func (h *Handler) Authenticated(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") { writeError(w, http.StatusUnauthorized, "missing bearer token"); return }
-		userID, _, err := h.service.tokens.Parse(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
+		userID, role, err := h.service.tokens.Parse(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
 		if err != nil { writeError(w, http.StatusUnauthorized, "invalid token"); return }
-		next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), userID)))
+		ctx := WithRole(WithUserID(r.Context(), userID), role)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
