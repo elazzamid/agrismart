@@ -28,33 +28,45 @@ type RetrievalFilter struct {
 
 func (s *Service) SearchPublished(ctx context.Context, filter RetrievalFilter, limit int) ([]PublishedKnowledge, error) {
     if limit <= 0 || limit > 50 { limit = 20 }
-    var rows interface { Close(); Next() bool; Scan(...any) error; Err() error }
-    var err error
     query := `
         SELECT d.id, d.slug, d.title, COALESCE(d.summary,''), v.id, v.version_no, v.content,
                v.source_id, kcl.crop_id, kcl.growth_stage_id
         FROM knowledge_documents d
-        JOIN knowledge_versions v ON v.document_id=d.id
-        LEFT JOIN knowledge_crop_links kcl ON kcl.document_id=d.id
-        WHERE d.status='published'
-          AND ($1='' OR kcl.crop_id::text=$1)
-          AND ($2='' OR kcl.growth_stage_id::text=$2)
-          AND ($3='' OR d.title ILIKE '%'||$3||'%' OR d.summary ILIKE '%'||$3||'%' OR v.content ILIKE '%'||$3||'%')
+        JOIN LATERAL (
+            SELECT v1.* FROM knowledge_versions v1
+            WHERE v1.document_id = d.id
+              AND EXISTS (
+                  SELECT 1 FROM knowledge_validations kv
+                  WHERE kv.version_id = v1.id AND kv.decision = 'approved'
+              )
+            ORDER BY v1.version_no DESC
+            LIMIT 1
+        ) v ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT DISTINCT k.document_id, k.crop_id, k.growth_stage_id
+            FROM knowledge_crop_links k
+            WHERE k.document_id = d.id
+              AND ($1 = '' OR k.crop_id::text = $1)
+              AND ($2 = '' OR k.growth_stage_id::text = $2)
+            LIMIT 1
+        ) kcl ON TRUE
+        WHERE d.status = 'published'
+          AND ($1 = '' OR kcl.crop_id IS NOT NULL)
+          AND ($2 = '' OR kcl.growth_stage_id IS NOT NULL)
+          AND ($3 = '' OR d.title ILIKE '%'||$3||'%' OR COALESCE(d.summary,'') ILIKE '%'||$3||'%' OR v.content ILIKE '%'||$3||'%')
         ORDER BY d.updated_at DESC, v.version_no DESC
         LIMIT $4`
-    pgRows, e := s.db.Query(ctx, query, strings.TrimSpace(filter.CropID), strings.TrimSpace(filter.GrowthStageID), strings.TrimSpace(filter.Query), limit)
-    err = e
+    rows, err := s.db.Query(ctx, query, strings.TrimSpace(filter.CropID), strings.TrimSpace(filter.GrowthStageID), strings.TrimSpace(filter.Query), limit)
     if err != nil { return nil, err }
-    rows = pgRows
     defer rows.Close()
-    result := make([]PublishedKnowledge,0)
+    result := make([]PublishedKnowledge, 0)
     for rows.Next() {
         var item PublishedKnowledge
         if err := rows.Scan(&item.ID,&item.Slug,&item.Title,&item.Summary,&item.VersionID,&item.VersionNo,&item.Content,&item.SourceID,&item.CropID,&item.GrowthStageID); err != nil { return nil, err }
-        result = append(result,item)
+        result = append(result, item)
     }
     if err := rows.Err(); err != nil { return nil, err }
-    return result,nil
+    return result, nil
 }
 
 var _ *pgxpool.Pool
