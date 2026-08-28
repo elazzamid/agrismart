@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	ErrEmailExists      = errors.New("email already registered")
+	ErrEmailExists        = errors.New("email already registered")
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrWeakPassword     = errors.New("password must be at least 8 characters")
-	ErrInvalidEmail     = errors.New("invalid email")
+	ErrWeakPassword       = errors.New("password must be at least 8 characters")
+	ErrInvalidEmail       = errors.New("invalid email")
 )
 
 type User struct {
@@ -82,11 +82,14 @@ func (s *Service) Login(ctx context.Context, email, password string) (User, stri
 	var user User
 	var hash string
 	err := s.db.QueryRow(ctx, `SELECT id, email, role, password_hash FROM users WHERE email = $1 AND is_active = TRUE`, email).Scan(&user.ID, &user.Email, &user.Role, &hash)
-	if errors.Is(err, pgx.ErrNoRows) || !CheckPassword(hash, password) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, "", ErrInvalidCredentials
 	}
 	if err != nil {
 		return User{}, "", err
+	}
+	if !CheckPassword(hash, password) {
+		return User{}, "", ErrInvalidCredentials
 	}
 
 	token, err := s.tokens.Issue(user.ID, user.Role)
