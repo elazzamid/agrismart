@@ -11,6 +11,12 @@ type MultiNutrientMatch struct { FertilizerID string `json:"fertilizer_id"`; Fer
 func AnalyzeMultiNutrientCoverage(fertilizerID, fertilizerName string, productAmount float64, components []FertilizerComponent, targets []NutrientTarget) (MultiNutrientMatch, error) {
     if productAmount < 0 { return MultiNutrientMatch{}, errors.New("product amount cannot be negative") }
     if len(targets)==0 { return MultiNutrientMatch{}, errors.New("at least one nutrient target is required") }
+    seen := make(map[string]bool, len(components))
+    for _, c := range components {
+        if c.NutrientCode == "" || c.Percentage <= 0 || c.Percentage > 100 { return MultiNutrientMatch{}, errors.New("invalid fertilizer component") }
+        if seen[c.NutrientCode] { return MultiNutrientMatch{}, errors.New("duplicate fertilizer nutrient component") }
+        seen[c.NutrientCode] = true
+    }
     coverage := make([]NutrientCoverage,0,len(targets))
     for _, target := range targets {
         if target.TargetAmount < 0 { return MultiNutrientMatch{}, errors.New("target amount cannot be negative") }
