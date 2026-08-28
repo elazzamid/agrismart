@@ -19,12 +19,16 @@ func (s *Service) BuildFertilizerCandidates(ctx context.Context, cropID, growthS
 	if len(requirements) == 0 { return []FertilizerCandidateResult{}, nil }
 	codes := make([]string,0,len(requirements))
 	targets := make([]NutrientTarget,0,len(requirements))
-	seen := map[string]bool{}
+	sourceDocuments := make([]string,0,len(requirements))
+	sourceVersions := make([]string,0,len(requirements))
+	seenCodes := map[string]bool{}
+	seenDocuments := map[string]bool{}
+	seenVersions := map[string]bool{}
 	for _, r := range requirements {
-		if !seen[r.NutrientCode] {
-			codes=append(codes,r.NutrientCode); seen[r.NutrientCode]=true
-		}
+		if !seenCodes[r.NutrientCode] { codes=append(codes,r.NutrientCode); seenCodes[r.NutrientCode]=true }
 		if r.RequirementMin != nil { targets=append(targets,NutrientTarget{NutrientCode:r.NutrientCode,TargetAmount:*r.RequirementMin,Unit:r.Unit}) }
+		if r.SourceDocumentID != nil && *r.SourceDocumentID != "" && !seenDocuments[*r.SourceDocumentID] { sourceDocuments=append(sourceDocuments,*r.SourceDocumentID); seenDocuments[*r.SourceDocumentID]=true }
+		if r.SourceVersionID != nil && *r.SourceVersionID != "" && !seenVersions[*r.SourceVersionID] { sourceVersions=append(sourceVersions,*r.SourceVersionID); seenVersions[*r.SourceVersionID]=true }
 	}
 	if len(targets)==0 { return []FertilizerCandidateResult{}, nil }
 	candidates, err := s.FindFertilizerCandidates(ctx, codes, limit)
@@ -33,7 +37,13 @@ func (s *Service) BuildFertilizerCandidates(ctx context.Context, cropID, growthS
 	for _, c := range candidates {
 		analysis, err := AnalyzeMultiNutrientCoverage(c.ID,c.Name,productAmount,c.Components,targets)
 		if err != nil { return nil,err }
-		result=append(result,FertilizerCandidateResult{FertilizerCandidate:c,Coverages:analysis.Coverages,AgronomicSuitabilitySupported:false})
+		result=append(result,FertilizerCandidateResult{
+			FertilizerCandidate:c,
+			Coverages:analysis.Coverages,
+			SourceDocumentIDs:append([]string(nil),sourceDocuments...),
+			SourceVersionIDs:append([]string(nil),sourceVersions...),
+			AgronomicSuitabilitySupported:false,
+		})
 	}
 	return result,nil
 }
