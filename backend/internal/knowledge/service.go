@@ -68,8 +68,10 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 
 func (s *Service) Publish(ctx context.Context, documentID, versionID string) error {
 	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND EXISTS (
-		SELECT 1 FROM knowledge_versions v JOIN knowledge_validations kv ON kv.version_id = v.id
+		SELECT 1 FROM knowledge_versions v
+		JOIN knowledge_validations kv ON kv.version_id = v.id
 		WHERE v.id = $2 AND v.document_id = d.id AND kv.decision = 'approved'
+		AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id = d.id)
 	)`, documentID, versionID)
 	if err != nil { return err }
 	if result.RowsAffected() == 0 { return ErrInvalidTransition }
