@@ -1,0 +1,70 @@
+name: AgriSmart CI
+
+on:
+  push:
+    branches: [main, 'foundation/**', 'feature/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  database:
+    name: Database migration smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start PostgreSQL
+        run: docker compose up -d postgres
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U agrismart -d agrismart; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Verify database
+        env:
+          DB_CONTAINER: agrismart-postgres-1
+        run: sh scripts/verify-database.sh
+
+      - name: Dump PostgreSQL logs on failure
+        if: failure()
+        run: docker compose logs postgres
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker compose down -v
+
+  backend:
+    name: Backend tests and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./cmd/api
