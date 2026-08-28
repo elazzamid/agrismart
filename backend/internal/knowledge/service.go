@@ -47,16 +47,16 @@ func (s *Service) AddVersion(ctx context.Context, documentID string, version int
 	return err
 }
 
-func (s *Service) Validate(ctx context.Context, documentID string, validator, decision, notes string) error {
+func (s *Service) Validate(ctx context.Context, documentID string, versionID, validator, decision, notes string) error {
 	validator = strings.TrimSpace(validator)
 	if validator == "" { return errors.New("validator is required") }
 	if decision != "approved" && decision != "rejected" && decision != "needs_revision" { return errors.New("invalid validation decision") }
 	tx, err := s.db.Begin(ctx); if err != nil { return err }
 	defer tx.Rollback(ctx)
-	var versionID string
-	err = tx.QueryRow(ctx, `SELECT id FROM knowledge_versions WHERE document_id = $1 ORDER BY version_no DESC LIMIT 1`, documentID).Scan(&versionID)
-	if errors.Is(err, pgx.ErrNoRows) { return ErrDocumentNotFound }
+	var exists bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM knowledge_versions WHERE id = $1 AND document_id = $2)`, versionID, documentID).Scan(&exists)
 	if err != nil { return err }
+	if !exists { return ErrDocumentNotFound }
 	_, err = tx.Exec(ctx, `INSERT INTO knowledge_validations (version_id, validator_name, decision, notes) VALUES ($1, $2, $3, NULLIF($4, ''))`, versionID, validator, decision, strings.TrimSpace(notes))
 	if err != nil { return err }
 	status := "review"
@@ -66,11 +66,11 @@ func (s *Service) Validate(ctx context.Context, documentID string, validator, de
 	return tx.Commit(ctx)
 }
 
-func (s *Service) Publish(ctx context.Context, documentID string) error {
+func (s *Service) Publish(ctx context.Context, documentID, versionID string) error {
 	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND EXISTS (
 		SELECT 1 FROM knowledge_versions v JOIN knowledge_validations kv ON kv.version_id = v.id
-		WHERE v.document_id = d.id AND kv.decision = 'approved'
-	)`, documentID)
+		WHERE v.id = $2 AND v.document_id = d.id AND kv.decision = 'approved'
+	)`, documentID, versionID)
 	if err != nil { return err }
 	if result.RowsAffected() == 0 { return ErrInvalidTransition }
 	return nil
