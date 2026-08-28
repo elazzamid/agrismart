@@ -28,13 +28,13 @@ SELECT r.crop_id::text,r.growth_stage_id::text,n.code,n.name,r.requirement_min,r
        r.source_document_id::text,r.source_version_id::text,COALESCE(r.notes,'')
 FROM crop_nutrient_requirements r
 JOIN nutrients n ON n.id=r.nutrient_id
-LEFT JOIN knowledge_documents d ON d.id=r.source_document_id AND d.status='published'
-LEFT JOIN knowledge_versions v ON v.id=r.source_version_id AND v.document_id=d.id
+JOIN knowledge_documents d ON d.id=r.source_document_id AND d.status='published'
+JOIN knowledge_versions v ON v.id=r.source_version_id AND v.document_id=d.id
 WHERE r.crop_id::text=$1
   AND ($2='' OR r.growth_stage_id::text=$2)
   AND r.source_document_id IS NOT NULL
   AND r.source_version_id IS NOT NULL
-  AND EXISTS (SELECT 1 FROM knowledge_validations kv WHERE kv.version_id=r.source_version_id AND kv.decision='approved')
+  AND EXISTS (SELECT 1 FROM knowledge_validations kv WHERE kv.version_id=v.id AND kv.decision='approved')
 ORDER BY n.code
 LIMIT $3`, cropID, growthStageID, limit)
     if err != nil { return nil, err }
