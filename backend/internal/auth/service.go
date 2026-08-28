@@ -58,8 +58,14 @@ func (s *Service) Register(ctx context.Context, email, password, fullName, phone
 		return User{}, err
 	}
 
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback(ctx)
+
 	var user User
-	err = s.db.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO users (email, password_hash, role)
 		VALUES ($1, $2, 'farmer')
 		RETURNING id, email, role`, email, hash).Scan(&user.ID, &user.Email, &user.Role)
@@ -70,8 +76,14 @@ func (s *Service) Register(ctx context.Context, email, password, fullName, phone
 		return User{}, err
 	}
 
-	_, err = s.db.Exec(ctx, `INSERT INTO farmer_profiles (user_id, full_name, phone) VALUES ($1, $2, NULLIF($3, ''))`, user.ID, strings.TrimSpace(fullName), strings.TrimSpace(phone))
+	_, err = tx.Exec(ctx, `
+		INSERT INTO farmer_profiles (user_id, full_name, phone)
+		VALUES ($1, $2, NULLIF($3, ''))`, user.ID, strings.TrimSpace(fullName), strings.TrimSpace(phone))
 	if err != nil {
+		return User{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return User{}, err
 	}
 	return user, nil
@@ -82,10 +94,10 @@ func (s *Service) Login(ctx context.Context, email, password string) (User, stri
 	var user User
 	var hash string
 	err := s.db.QueryRow(ctx, `SELECT id, email, role, password_hash FROM users WHERE email = $1 AND is_active = TRUE`, email).Scan(&user.ID, &user.Email, &user.Role, &hash)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return User{}, "", ErrInvalidCredentials
-	}
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, "", ErrInvalidCredentials
+		}
 		return User{}, "", err
 	}
 	if !CheckPassword(hash, password) {
