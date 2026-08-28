@@ -1,15 +1,36 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/elazzamid/agrismart/backend/internal/auth"
+	"github.com/elazzamid/agrismart/backend/internal/platform"
 )
 
 func main() {
+	ctx := context.Background()
+	db, err := platform.OpenDatabase(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	tokens, err := auth.NewTokenService()
+	if err != nil {
+		log.Fatal(err)
+	}
+	authService := auth.NewService(db, tokens)
+	authHandler := auth.NewHandler(authService)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", healthHandler)
+	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	mux.Handle("GET /api/v1/auth/me", authHandler.Authenticated(http.HandlerFunc(authHandler.Me)))
 
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
