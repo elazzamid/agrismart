@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrDocumentNotFound = errors.New("knowledge document not found")
+	ErrDocumentNotFound  = errors.New("knowledge document not found")
 	ErrInvalidTransition = errors.New("invalid knowledge publication transition")
 )
 
@@ -40,11 +40,16 @@ func (s *Service) CreateDocument(ctx context.Context, slug, title, summary, auth
 
 func (s *Service) AddVersion(ctx context.Context, documentID string, version int, content string, sourceID *string) error {
 	if version < 1 || strings.TrimSpace(content) == "" { return errors.New("version and content are required") }
+	var status string
+	if err := s.db.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1`, documentID).Scan(&status); errors.Is(err, pgx.ErrNoRows) { return ErrDocumentNotFound } else if err != nil { return err }
+	if status == "published" || status == "archived" { return ErrInvalidTransition }
 	_, err := s.db.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, $4)`, documentID, version, strings.TrimSpace(content), sourceID)
 	return err
 }
 
 func (s *Service) Validate(ctx context.Context, documentID string, validator, decision, notes string) error {
+	validator = strings.TrimSpace(validator)
+	if validator == "" { return errors.New("validator is required") }
 	if decision != "approved" && decision != "rejected" && decision != "needs_revision" { return errors.New("invalid validation decision") }
 	tx, err := s.db.Begin(ctx); if err != nil { return err }
 	defer tx.Rollback(ctx)
@@ -52,7 +57,7 @@ func (s *Service) Validate(ctx context.Context, documentID string, validator, de
 	err = tx.QueryRow(ctx, `SELECT id FROM knowledge_versions WHERE document_id = $1 ORDER BY version_no DESC LIMIT 1`, documentID).Scan(&versionID)
 	if errors.Is(err, pgx.ErrNoRows) { return ErrDocumentNotFound }
 	if err != nil { return err }
-	_, err = tx.Exec(ctx, `INSERT INTO knowledge_validations (version_id, validator_name, decision, notes) VALUES ($1, $2, $3, NULLIF($4, ''))`, versionID, strings.TrimSpace(validator), decision, strings.TrimSpace(notes))
+	_, err = tx.Exec(ctx, `INSERT INTO knowledge_validations (version_id, validator_name, decision, notes) VALUES ($1, $2, $3, NULLIF($4, ''))`, versionID, validator, decision, strings.TrimSpace(notes))
 	if err != nil { return err }
 	status := "review"
 	if decision == "approved" { status = "validated" }
