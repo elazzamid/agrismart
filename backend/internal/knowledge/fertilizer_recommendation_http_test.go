@@ -29,7 +29,7 @@ func TestRecommendFertilizersRejectsInvalidProductAmount(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "product_amount must be a non-negative number") {
+	if !strings.Contains(rec.Body.String(), "product_amount must be a finite non-negative number") {
 		t.Fatalf("unexpected response: %s", rec.Body.String())
 	}
 }
