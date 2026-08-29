@@ -2,7 +2,7 @@ package auth
 
 import "context"
 
-type contextKey struct{}
+type contextKey int
 
 const (
 	userContextKey contextKey = iota
