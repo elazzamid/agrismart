@@ -32,6 +32,7 @@ func main() {
 
 	protectedKnowledge := func(next http.Handler) http.Handler { return authHandler.Authenticated(next) }
 	mux.Handle("GET /api/v1/knowledge", protectedKnowledge(http.HandlerFunc(knowledgeHandler.SearchPublished)))
+	mux.Handle("GET /api/v1/knowledge/fertilizers/recommendations", protectedKnowledge(http.HandlerFunc(knowledgeHandler.RecommendFertilizers)))
 	mux.Handle("POST /api/v1/diagnosis", protectedKnowledge(http.HandlerFunc(knowledgeHandler.Diagnose)))
 	mux.Handle("POST /api/v1/knowledge/documents", protectedKnowledge(http.HandlerFunc(knowledgeHandler.CreateDocument)))
 	mux.Handle("POST /api/v1/knowledge/documents/{id}/versions", protectedKnowledge(http.HandlerFunc(knowledgeHandler.AddVersion)))
