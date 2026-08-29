@@ -2,6 +2,7 @@ package knowledge
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 )
@@ -13,8 +14,8 @@ func (h *HTTPHandler) RecommendFertilizers(w http.ResponseWriter, r *http.Reques
 	q := r.URL.Query()
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	productAmount, err := strconv.ParseFloat(q.Get("product_amount"), 64)
-	if err != nil || productAmount < 0 {
-		jsonError(w, http.StatusBadRequest, "product_amount must be a non-negative number")
+	if err != nil || productAmount < 0 || math.IsNaN(productAmount) || math.IsInf(productAmount, 0) {
+		jsonError(w, http.StatusBadRequest, "product_amount must be a finite non-negative number")
 		return
 	}
 	cropID := q.Get("crop_id")
