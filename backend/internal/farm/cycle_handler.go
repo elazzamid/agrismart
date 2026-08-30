@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/elazzamid/agrismart/backend/internal/auth"
 )
 
@@ -21,7 +20,7 @@ func (h *CropCycleHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	cycles, err := h.service.List(r.Context(), farmerID, r.PathValue("plotID"))
+	cycles, err := h.service.List(r.Context(), farmerID, r.PathValue("farmID"), r.PathValue("plotID"))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -42,8 +41,8 @@ func (h *CropCycleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	cycle, err := h.service.Create(r.Context(), farmerID, r.PathValue("plotID"), in)
-	if errors.Is(err, ErrCropCycleNotFound) || errors.Is(err, pgx.ErrNoRows) {
+	cycle, err := h.service.Create(r.Context(), farmerID, r.PathValue("farmID"), r.PathValue("plotID"), in)
+	if errors.Is(err, ErrCropCycleNotFound) {
 		writeError(w, http.StatusNotFound, "plot not found")
 		return
 	}
