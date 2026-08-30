@@ -27,6 +27,7 @@ func main() {
 	farmHandler := farm.NewHandler(farmService)
 	plotHandler := farm.NewPlotHandler(farm.NewPlotService(db))
 	cropCycleHandler := farm.NewCropCycleHandler(farm.NewCropCycleService(db))
+	catalogHandler := farm.NewCatalogHandler(farm.NewCatalogService(db))
 	knowledgeHandler := knowledge.NewHTTPHandler(knowledge.NewService(db))
 
 	mux := http.NewServeMux()
@@ -43,6 +44,9 @@ func main() {
 	mux.Handle("POST /api/v1/farms/{farmID}/plots", protected(http.HandlerFunc(plotHandler.Create)))
 	mux.Handle("GET /api/v1/farms/{farmID}/plots/{plotID}/crop-cycles", protected(http.HandlerFunc(cropCycleHandler.List)))
 	mux.Handle("POST /api/v1/farms/{farmID}/plots/{plotID}/crop-cycles", protected(http.HandlerFunc(cropCycleHandler.Create)))
+	mux.Handle("GET /api/v1/crops", protected(http.HandlerFunc(catalogHandler.ListCrops)))
+	mux.Handle("GET /api/v1/crops/{cropID}/varieties", protected(http.HandlerFunc(catalogHandler.ListVarieties)))
+	mux.Handle("GET /api/v1/crops/{cropID}/growth-stages", protected(http.HandlerFunc(catalogHandler.ListGrowthStages)))
 
 	mux.Handle("GET /api/v1/knowledge", protected(http.HandlerFunc(knowledgeHandler.SearchPublished)))
 	mux.Handle("GET /api/v1/knowledge/fertilizers/recommendations", protected(http.HandlerFunc(knowledgeHandler.RecommendFertilizers)))
