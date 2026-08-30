@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrNotFound = errors.New("farm not found")
@@ -28,9 +27,9 @@ type CreateInput struct {
 	Longitude    *float64 `json:"longitude"`
 }
 
-type Service struct { db *pgxpool.Pool }
+type Service struct { db DBTX }
 
-func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
+func NewService(db DBTX) *Service { return &Service{db: db} }
 
 func (s *Service) Create(ctx context.Context, farmerID string, in CreateInput) (Farm, error) {
 	if strings.TrimSpace(in.Name) == "" {
