@@ -37,7 +37,7 @@ func TestPublishRequiresSourceBackedLatestApprovedVersion(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer db.Close()
 	s := NewService(db)
-	db.ExpectExec(`(?s)UPDATE knowledge_documents d SET status = 'published'.*v\.source_id IS NOT NULL`).
+	db.ExpectExec(`UPDATE knowledge_documents d SET status = 'published'[\s\S]*v\.source_id IS NOT NULL`).
 		WithArgs("d1", "v1").
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
