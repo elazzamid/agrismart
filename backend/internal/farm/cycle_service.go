@@ -6,7 +6,6 @@ import (
     "strings"
 
     "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrCropCycleNotFound = errors.New("crop cycle not found")
@@ -26,8 +25,8 @@ type CreateCropCycleInput struct {
     PlantingDate string `json:"planting_date"`
 }
 
-type CropCycleService struct { db *pgxpool.Pool }
-func NewCropCycleService(db *pgxpool.Pool) *CropCycleService { return &CropCycleService{db: db} }
+type CropCycleService struct { db DBTX }
+func NewCropCycleService(db DBTX) *CropCycleService { return &CropCycleService{db: db} }
 
 func (s *CropCycleService) Create(ctx context.Context, farmerID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
     if strings.TrimSpace(in.CropID) == "" { return CropCycle{}, errors.New("crop id is required") }
