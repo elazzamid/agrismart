@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -40,7 +39,7 @@ type DBTX interface {
 
 type Service struct{ db DBTX }
 
-func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
+func NewService(db DBTX) *Service { return &Service{db: db} }
 
 func (s *Service) CreateDocument(ctx context.Context, slug, title, summary, author string) (Document, error) {
 	slug, title = strings.TrimSpace(slug), strings.TrimSpace(title)
