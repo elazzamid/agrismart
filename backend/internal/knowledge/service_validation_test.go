@@ -31,3 +31,15 @@ func TestPublishRequiresValidatedDocumentAndApprovedVersion(t *testing.T) {
 	if err := s.Publish(context.Background(), "d1", "v1"); err != ErrInvalidTransition { t.Fatalf("expected ErrInvalidTransition, got %v", err) }
 	if err := db.ExpectationsWereMet(); err != nil { t.Fatal(err) }
 }
+
+func TestPublishRequiresSourceBackedLatestApprovedVersion(t *testing.T) {
+	db, err := pgxmock.NewPool()
+	if err != nil { t.Fatal(err) }
+	defer db.Close()
+	s := NewService(db)
+	db.ExpectExec(`UPDATE knowledge_documents d SET status = 'published'.*v\.source_id IS NOT NULL`).
+		WithArgs("d1", "v1").
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
+	if err := db.ExpectationsWereMet(); err != nil { t.Fatal(err) }
+}
