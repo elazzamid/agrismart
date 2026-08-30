@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrPlotNotFound = errors.New("plot not found")
@@ -23,8 +22,8 @@ type CreatePlotInput struct {
 	AreaM2 float64 `json:"area_m2"`
 }
 
-type PlotService struct { db *pgxpool.Pool }
-func NewPlotService(db *pgxpool.Pool) *PlotService { return &PlotService{db: db} }
+type PlotService struct { db DBTX }
+func NewPlotService(db DBTX) *PlotService { return &PlotService{db: db} }
 
 func (s *PlotService) Create(ctx context.Context, farmerID, farmID string, in CreatePlotInput) (Plot, error) {
 	if strings.TrimSpace(in.Name) == "" { return Plot{}, errors.New("plot name is required") }
