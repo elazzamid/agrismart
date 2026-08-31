@@ -108,8 +108,17 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 	if err != nil {
 		return err
 	}
+	var isLatest bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(
+		SELECT 1 FROM knowledge_versions v
+		WHERE v.id = $1 AND v.document_id = $2
+		AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id = $2)
+	)`, versionID, documentID).Scan(&isLatest)
+	if err != nil {
+		return err
+	}
 	status = "review"
-	if decision == "approved" {
+	if decision == "approved" && isLatest {
 		status = "validated"
 	}
 	if decision == "rejected" {
