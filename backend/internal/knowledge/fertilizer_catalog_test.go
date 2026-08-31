@@ -18,8 +18,8 @@ func TestListFertilizersLimitAppliesToProductsBeforeNutrientJoin(t *testing.T) {
 	pool.ExpectQuery(`WITH limited_fertilizers AS \(\s*SELECT id, name, formulation, description\s*FROM fertilizers\s*ORDER BY name, id\s*LIMIT \$1\s*\)`).
 		WithArgs(1).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "name", "formulation", "description", "nutrient_code", "percentage"}).
-			AddRow("fert-1", "Urea", "46-0-0", "", "N", 46).
-			AddRow("fert-1", "Urea", "46-0-0", "", "", 0))
+			AddRow("fert-1", "Urea", "46-0-0", "", "N", 46.0).
+			AddRow("fert-1", "Urea", "46-0-0", "", "", 0.0))
 
 	items, err := s.ListFertilizers(context.Background(), 1)
 	if err != nil {
