@@ -115,6 +115,10 @@ func (s *Service) Publish(ctx context.Context, documentID, versionID string) err
 		SELECT 1 FROM knowledge_versions v
 		JOIN knowledge_validations kv ON kv.version_id = v.id
 		WHERE v.id = $2 AND v.document_id = d.id AND v.source_id IS NOT NULL AND kv.decision = 'approved'
+		AND NOT EXISTS (
+			SELECT 1 FROM knowledge_validations kv2
+			WHERE kv2.version_id = v.id AND (kv2.validated_at, kv2.id) > (kv.validated_at, kv.id)
+		)
 		AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id = d.id)
 	)`, documentID, versionID)
 	if err != nil {
