@@ -81,6 +81,25 @@ func TestPublishRejectsVersionWithNewerNonApprovedValidation(t *testing.T) {
 	}
 }
 
+func TestAddVersionRejectsValidatedDocument(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewService(pool)
+	pool.ExpectQuery(`SELECT status FROM knowledge_documents WHERE id = \$1`).
+		WithArgs("doc").
+		WillReturnRows(pgxmock.NewRows([]string{"status"}).AddRow("validated"))
+
+	if err := s.AddVersion(context.Background(), "doc", 2, "content", nil); err != ErrInvalidTransition {
+		t.Fatalf("expected invalid transition for validated document, got %v", err)
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAddVersionRejectsPublishedDocument(t *testing.T) {
 	pool, err := pgxmock.NewPool()
 	if err != nil {
