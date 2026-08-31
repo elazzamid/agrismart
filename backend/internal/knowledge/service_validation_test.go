@@ -2,6 +2,8 @@ package knowledge
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/pashagolub/pgxmock/v4"
@@ -33,11 +35,23 @@ func TestPublishRequiresValidatedDocumentAndApprovedVersion(t *testing.T) {
 }
 
 func TestPublishRequiresSourceBackedLatestApprovedVersion(t *testing.T) {
-	db, err := pgxmock.NewPool()
+	matcher := pgxmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+		if !strings.Contains(actualSQL, "v.source_id IS NOT NULL") {
+			return fmt.Errorf("publish query must require source provenance: %s", actualSQL)
+		}
+		if !strings.Contains(actualSQL, "kv.decision = 'approved'") {
+			return fmt.Errorf("publish query must require approved validation: %s", actualSQL)
+		}
+		if !strings.Contains(actualSQL, "v.version_no = (SELECT MAX(v2.version_no)") {
+			return fmt.Errorf("publish query must require the latest version: %s", actualSQL)
+		}
+		return nil
+	})
+	db, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(matcher))
 	if err != nil { t.Fatal(err) }
 	defer db.Close()
 	s := NewService(db)
-	db.ExpectExec(`(?s)^UPDATE knowledge_documents d SET status = 'published', updated_at = NOW\(\) WHERE d\.id = \$1 AND d\.status = 'validated' AND EXISTS \(.*v\.source_id IS NOT NULL.*\)$`).
+	db.ExpectExec("publish query requires provenance, approval, and latest-version checks").
 		WithArgs("d1", "v1").
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
