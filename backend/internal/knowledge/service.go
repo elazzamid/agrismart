@@ -65,7 +65,7 @@ func (s *Service) AddVersion(ctx context.Context, documentID string, version int
 	} else if err != nil {
 		return err
 	}
-	if status == "published" || status == "archived" {
+	if status == "validated" || status == "published" || status == "archived" {
 		return ErrInvalidTransition
 	}
 	_, err := s.db.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, $4)`, documentID, version, strings.TrimSpace(content), sourceID)
