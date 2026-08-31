@@ -17,6 +17,7 @@ func TestValidateApprovedSetsValidatedStatus(t *testing.T) {
 	db.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM knowledge_versions`).WithArgs("v1", "d1").WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 	db.ExpectQuery(`SELECT status FROM knowledge_documents WHERE id = \$1`).WithArgs("d1").WillReturnRows(pgxmock.NewRows([]string{"status"}).AddRow("review"))
 	db.ExpectExec(`INSERT INTO knowledge_validations`).WithArgs("v1", "expert", "approved", "ok").WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	db.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM knowledge_versions`).WithArgs("v1", "d1").WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 	db.ExpectExec(`UPDATE knowledge_documents SET status = \$2`).WithArgs("d1", "validated").WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 	db.ExpectCommit()
 	if err := s.Validate(ctx, "d1", "v1", "expert", "approved", "ok"); err != nil { t.Fatal(err) }
