@@ -51,7 +51,7 @@ func TestCatalogServiceListGrowthStagesOrdersBySequence(t *testing.T) {
 	pool.ExpectQuery(`SELECT id, crop_id, name, sequence_no, min_days, max_days, COALESCE\(description, ''\) FROM crop_growth_stages WHERE crop_id = \$1 ORDER BY sequence_no`).
 		WithArgs(cropID).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "crop_id", "name", "sequence_no", "min_days", "max_days", "description"}).
-			AddRow("stage-1", cropID, "Persemaian", int32(1), int32(0), int32(20), "Tahap awal"))
+			AddRow("stage-1", cropID, "Persemaian", 1, 0, 20, "Tahap awal"))
 
 	items, err := s.ListGrowthStages(context.Background(), cropID)
 	if err != nil { t.Fatal(err) }
