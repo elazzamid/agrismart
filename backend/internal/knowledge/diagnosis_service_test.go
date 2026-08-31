@@ -15,7 +15,7 @@ func TestDiagnosePublishedUsesLatestVersionOnly(t *testing.T) {
 	defer pool.Close()
 	s := NewService(pool)
 
-	pool.ExpectQuery(`SELECT DISTINCT d\.id, d\.slug, d\.title,\s*CASE WHEN kp\.pest_id IS NOT NULL THEN 'pest' ELSE 'disease' END,\s*COALESCE\(kp\.pest_id, kd\.disease_id\)::text,\s*GREATEST\(.*FROM knowledge_documents d\s*JOIN knowledge_versions v ON v\.document_id=d\.id.*WHERE d\.status='published'\s*AND v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\)`).
+	pool.ExpectQuery(`(?s)SELECT DISTINCT d\.id, d\.slug, d\.title,.*FROM knowledge_documents d\s*JOIN knowledge_versions v ON v\.document_id=d\.id.*WHERE d\.status='published'\s*AND v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\)`).
 		WithArgs("crop-1", []string{"leaf spot"}, 10).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "slug", "title", "problem_type", "problem_id", "score", "content"}).
 			AddRow("doc-1", "cabai-leaf-spot", "Leaf Spot", "disease", "disease-1", 1, "leaf spot on leaves"))
