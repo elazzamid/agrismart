@@ -118,3 +118,37 @@ func TestAddVersionRejectsPublishedDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateApprovedOlderVersionKeepsDocumentInReview(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewService(pool)
+	tx, err := pool.ExpectBegin(), error(nil)
+	_ = tx
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM knowledge_versions WHERE id = \$1 AND document_id = \$2\)`).
+		WithArgs("version-1", "doc").
+		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
+	pool.ExpectQuery(`SELECT status FROM knowledge_documents WHERE id = \$1`).
+		WithArgs("doc").
+		WillReturnRows(pgxmock.NewRows([]string{"status"}).AddRow("review"))
+	pool.ExpectExec(`INSERT INTO knowledge_validations`).
+		WithArgs("version-1", "validator", "approved", "").WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	pool.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM knowledge_versions v`).
+		WithArgs("version-1", "doc").
+		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
+	pool.ExpectExec(`UPDATE knowledge_documents SET status = \$2, updated_at = NOW\(\) WHERE id = \$1`).
+		WithArgs("doc", "review").WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+	pool.ExpectCommit()
+	if err := s.Validate(context.Background(), "doc", "version-1", "validator", "approved", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
