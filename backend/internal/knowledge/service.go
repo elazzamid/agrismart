@@ -93,11 +93,22 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 	if !exists {
 		return ErrDocumentNotFound
 	}
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1`, documentID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrDocumentNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if status == "published" || status == "archived" {
+		return ErrInvalidTransition
+	}
 	_, err = tx.Exec(ctx, `INSERT INTO knowledge_validations (version_id, validator_name, decision, notes) VALUES ($1, $2, $3, NULLIF($4, ''))`, versionID, validator, decision, strings.TrimSpace(notes))
 	if err != nil {
 		return err
 	}
-	status := "review"
+	status = "review"
 	if decision == "approved" {
 		status = "validated"
 	}
