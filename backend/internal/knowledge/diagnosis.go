@@ -41,7 +41,14 @@ func (s *Service) DiagnosePublished(ctx context.Context, cropID string, symptoms
         WHERE d.status='published'
           AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
           AND ($1='' OR EXISTS (SELECT 1 FROM knowledge_crop_links k WHERE k.document_id=d.id AND k.crop_id::text=$1))
-          AND EXISTS (SELECT 1 FROM knowledge_validations kv WHERE kv.version_id=v.id AND kv.decision='approved')
+          AND EXISTS (
+              SELECT 1 FROM knowledge_validations kv
+              WHERE kv.version_id=v.id AND kv.decision='approved'
+                AND NOT EXISTS (
+                    SELECT 1 FROM knowledge_validations kv2
+                    WHERE kv2.version_id=v.id AND (kv2.validated_at, kv2.id) > (kv.validated_at, kv.id)
+                )
+          )
           AND EXISTS (SELECT 1 FROM unnest($2::text[]) q WHERE v.content ILIKE '%' || q || '%' OR d.title ILIKE '%' || q || '%')
         ORDER BY score DESC, d.updated_at DESC
         LIMIT $3`, strings.TrimSpace(cropID), cleaned, limit)
