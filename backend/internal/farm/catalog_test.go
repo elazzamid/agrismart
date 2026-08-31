@@ -51,10 +51,11 @@ func TestCatalogServiceListGrowthStagesOrdersBySequence(t *testing.T) {
 	pool.ExpectQuery(`SELECT id, crop_id, name, sequence_no, min_days, max_days, COALESCE\(description, ''\) FROM crop_growth_stages WHERE crop_id = \$1 ORDER BY sequence_no`).
 		WithArgs(cropID).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "crop_id", "name", "sequence_no", "min_days", "max_days", "description"}).
-			AddRow("stage-1", cropID, "Persemaian", 1, 0, 20, "Tahap awal"))
+			AddRow("stage-1", cropID, "Persemaian", 1, nil, nil, "Tahap awal"))
 
 	items, err := s.ListGrowthStages(context.Background(), cropID)
 	if err != nil { t.Fatal(err) }
 	if len(items) != 1 || items[0].SequenceNo != 1 { t.Fatalf("unexpected stages: %+v", items) }
+	if items[0].MinDays != nil || items[0].MaxDays != nil { t.Fatalf("expected nullable day bounds to remain nil: %+v", items[0]) }
 	if err := pool.ExpectationsWereMet(); err != nil { t.Fatal(err) }
 }
