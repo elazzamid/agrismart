@@ -16,8 +16,9 @@ func CalculateFertilizerAmount(fertilizerID, fertilizerName, nutrientCode string
     nutrientCode = strings.TrimSpace(nutrientCode)
     unit = strings.TrimSpace(unit)
     if nutrientCode == "" || unit == "" { return FertilizerAmount{}, errors.New("nutrient code and unit are required") }
-    if targetAmount < 0 { return FertilizerAmount{}, errors.New("target amount cannot be negative") }
-    if percentage <= 0 || percentage > 100 { return FertilizerAmount{}, errors.New("fertilizer percentage must be greater than 0 and at most 100") }
+    if math.IsNaN(targetAmount) || math.IsInf(targetAmount, 0) || targetAmount < 0 { return FertilizerAmount{}, errors.New("target amount must be finite and cannot be negative") }
+    if math.IsNaN(percentage) || math.IsInf(percentage, 0) || percentage <= 0 || percentage > 100 { return FertilizerAmount{}, errors.New("fertilizer percentage must be finite, greater than 0 and at most 100") }
     amount := targetAmount / (percentage / 100)
+    if math.IsInf(amount, 0) || math.IsNaN(amount) { return FertilizerAmount{}, errors.New("calculated fertilizer amount is not finite") }
     return FertilizerAmount{FertilizerID: fertilizerID, FertilizerName: fertilizerName, NutrientCode: nutrientCode, TargetAmount: targetAmount, Unit: unit, RequiredFertilizerAmount: math.Round(amount*10000)/10000}, nil
 }
