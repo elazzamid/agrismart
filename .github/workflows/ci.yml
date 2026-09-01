@@ -16,10 +16,15 @@ jobs:
         uses: actions/checkout@v4
       - name: Start PostgreSQL
         run: docker compose up -d postgres
-      - name: Wait for PostgreSQL
+      - name: Wait for PostgreSQL initialization
         run: |
-          for i in $(seq 1 30); do
-            if docker compose exec -T postgres pg_isready -U agrismart -d agrismart; then exit 0; fi
+          for i in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q postgres)")"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            if [ "$status" = "unhealthy" ]; then
+              docker compose logs postgres
+              exit 1
+            fi
             sleep 2
           done
           docker compose logs postgres
