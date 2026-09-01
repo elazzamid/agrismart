@@ -34,7 +34,15 @@ FROM knowledge_documents d
 JOIN LATERAL (
   SELECT v1.* FROM knowledge_versions v1
   WHERE v1.document_id=d.id
-    AND EXISTS (SELECT 1 FROM knowledge_validations kv WHERE kv.version_id=v1.id AND kv.decision='approved')
+    AND EXISTS (
+      SELECT 1 FROM knowledge_validations kv
+      WHERE kv.version_id=v1.id AND kv.decision='approved'
+        AND NOT EXISTS (
+          SELECT 1 FROM knowledge_validations kv2
+          WHERE kv2.version_id=v1.id
+            AND (kv2.validated_at, kv2.id) > (kv.validated_at, kv.id)
+        )
+    )
   ORDER BY v1.version_no DESC LIMIT 1
 ) v ON TRUE
 LEFT JOIN LATERAL (
