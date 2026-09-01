@@ -33,9 +33,23 @@ func (s *Service) DiagnoseBySymptoms(ctx context.Context, symptomIDs []string, c
               SELECT 1 FROM knowledge_documents d
               JOIN knowledge_crop_links k ON k.document_id=d.id
               WHERE d.status='published' AND k.crop_id::text=$2
+                AND EXISTS (
+                    SELECT 1 FROM knowledge_versions v
+                    WHERE v.document_id=d.id
+                      AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
+                      AND EXISTS (
+                          SELECT 1 FROM knowledge_validations kv
+                          WHERE kv.version_id=v.id AND kv.decision='approved'
+                            AND NOT EXISTS (
+                                SELECT 1 FROM knowledge_validations kv2
+                                WHERE kv2.version_id=v.id AND (kv2.validated_at, kv2.id) > (kv.validated_at, kv.id)
+                            )
+                      )
+                )
                 AND ((ps.pest_id IS NOT NULL AND EXISTS (SELECT 1 FROM knowledge_pest_links kp WHERE kp.document_id=d.id AND kp.pest_id=ps.pest_id))
                   OR (ps.disease_id IS NOT NULL AND EXISTS (SELECT 1 FROM knowledge_disease_links kd WHERE kd.document_id=d.id AND kd.disease_id=ps.disease_id)))
           ))
+          AND (ps.pest_id IS NOT NULL) <> (ps.disease_id IS NOT NULL)
         GROUP BY ps.pest_id, ps.disease_id
         ORDER BY score DESC, matched_symptoms DESC
         LIMIT $3`, cleaned, strings.TrimSpace(cropID), limit)
