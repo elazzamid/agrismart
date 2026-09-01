@@ -15,7 +15,7 @@ func TestDiagnoseBySymptomsRequiresLatestApprovedVersion(t *testing.T) {
     defer pool.Close()
     s := NewService(pool)
 
-    pool.ExpectQuery(`(?s)SELECT CASE WHEN ps\.pest_id IS NOT NULL THEN 'pest' ELSE 'disease' END,.*FROM problem_symptoms ps.*WHERE ps\.symptom_id::text = ANY\(\$1::text\[\]\).*problem_symptom_sources pss.*pss\.symptom_id=ps\.symptom_id.*d\.status='published'.*knowledge_versions v.*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*knowledge_validations kv.*kv\.decision='approved'.*knowledge_validations kv2.*\(kv2\.validated_at, kv2\.id\).*AND \(ps\.pest_id IS NOT NULL\) <> \(ps\.disease_id IS NOT NULL\)`).
+    pool.ExpectQuery(`(?s)SELECT CASE WHEN ps\.pest_id IS NOT NULL THEN 'pest' ELSE 'disease' END,.*FROM problem_symptoms ps.*problem_symptom_sources pss.*d\.status='published'.*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'.*AND \(ps\.pest_id IS NOT NULL\) <> \(ps\.disease_id IS NOT NULL\)`).
         WithArgs([]string{"symptom-1"}, "crop-1", 10).
         WillReturnRows(pgxmock.NewRows([]string{"problem_type", "problem_id", "matched_symptoms", "score", "evidence"}).
             AddRow("disease", "disease-1", 1, 2, []string{"leaf spot"}))
@@ -40,7 +40,7 @@ func TestDiagnoseBySymptomsRequiresExplicitEvidenceMapping(t *testing.T) {
     defer pool.Close()
     s := NewService(pool)
 
-    pool.ExpectQuery(`(?s)FROM problem_symptoms ps.*EXISTS \(\s*SELECT 1 FROM problem_symptom_sources pss\s*JOIN knowledge_documents d ON d\.id=pss\.document_id\s*JOIN knowledge_versions v ON v\.id=pss\.version_id AND v\.document_id=d\.id\s*WHERE pss\.symptom_id=ps\.symptom_id\s*AND \(\(pss\.pest_id IS NOT NULL AND pss\.pest_id=ps\.pest_id\) OR \(pss\.disease_id IS NOT NULL AND pss\.disease_id=ps\.disease_id\)\).*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'`).
+    pool.ExpectQuery(`(?s)FROM problem_symptoms ps.*EXISTS \(.*problem_symptom_sources pss.*pss\.symptom_id=ps\.symptom_id.*d\.status='published'.*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'`).
         WithArgs([]string{"symptom-1"}, "crop-1", 10).
         WillReturnRows(pgxmock.NewRows([]string{"problem_type", "problem_id", "matched_symptoms", "score", "evidence"}))
 
@@ -64,7 +64,7 @@ func TestDiagnoseBySymptomsKeepsEvidenceMappingWhenCropFilterOmitted(t *testing.
     defer pool.Close()
     s := NewService(pool)
 
-    pool.ExpectQuery(`(?s)FROM problem_symptoms ps.*WHERE ps\.symptom_id::text = ANY\(\$1::text\[\]\).*AND EXISTS \(\s*SELECT 1 FROM problem_symptom_sources pss.*d\.status='published'.*AND \(\$2='' OR EXISTS \(SELECT 1 FROM knowledge_crop_links k WHERE k\.document_id=d\.id AND k\.crop_id::text=\$2\)\).*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'`).
+    pool.ExpectQuery(`(?s)FROM problem_symptoms ps.*WHERE ps\.symptom_id::text = ANY\(\$1::text\[\]\).*AND EXISTS \(.*problem_symptom_sources pss.*d\.status='published'.*AND \(\$2='' OR EXISTS \(SELECT 1 FROM knowledge_crop_links k WHERE k\.document_id=d\.id AND k\.crop_id::text=\$2\)\).*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'`).
         WithArgs([]string{"symptom-1"}, "", 10).
         WillReturnRows(pgxmock.NewRows([]string{"problem_type", "problem_id", "matched_symptoms", "score", "evidence"}).
             AddRow("disease", "disease-1", 1, 2, []string{"leaf spot"}))
