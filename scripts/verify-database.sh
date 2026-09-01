@@ -25,6 +25,10 @@ SELECT 1 FROM pg_constraint WHERE conname = 'farm_plots_area_check';
 SELECT 1 FROM pg_constraint WHERE conname = 'crop_varieties_crop_name_unique';
 SELECT 1 FROM pg_constraint WHERE conname = 'crop_growth_stages_sequence_unique';
 SELECT 1 FROM pg_constraint WHERE conname = 'crop_cycles_status_check';
+
+printf '%s\n' "Checking knowledge constraints..."
+SELECT 1 FROM pg_constraint WHERE conname = 'fertilizer_nutrients_percentage_check';
+SELECT 1 FROM pg_constraint WHERE conname = 'fertilizer_nutrients_percentage_range_check';
 SQL
 
 printf '%s\n' "Database verification: PASS"
