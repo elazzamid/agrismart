@@ -22,18 +22,14 @@ type PublishedKnowledge struct {
 
 type RetrievalFilter struct { CropID string; GrowthStageID string; Query string }
 
-func (s *Service) SearchPublished(ctx context.Context, filter RetrievalFilter, limit int) ([]PublishedKnowledge, error) {
-	if limit <= 0 || limit > 50 { limit = 20 }
-	cropID := strings.TrimSpace(filter.CropID)
-	stageID := strings.TrimSpace(filter.GrowthStageID)
-	q := strings.TrimSpace(filter.Query)
-	query := `
+const publishedRetrievalQuery = `
 SELECT d.id,d.slug,d.title,COALESCE(d.summary,''),v.id,v.version_no,v.content,v.source_id,
        COALESCE(k.crop_id::text,''),k.growth_stage_id
 FROM knowledge_documents d
 JOIN LATERAL (
   SELECT v1.* FROM knowledge_versions v1
   WHERE v1.document_id=d.id
+    AND v1.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
     AND EXISTS (
       SELECT 1 FROM knowledge_validations kv
       WHERE kv.version_id=v1.id AND kv.decision='approved'
@@ -58,7 +54,13 @@ WHERE d.status='published'
   AND ($3='' OR d.title ILIKE '%'||$3||'%' OR COALESCE(d.summary,'') ILIKE '%'||$3||'%' OR v.content ILIKE '%'||$3||'%')
 ORDER BY d.updated_at DESC,v.version_no DESC
 LIMIT $4`
-	rows, err := s.db.Query(ctx, query, cropID, stageID, q, limit)
+
+func (s *Service) SearchPublished(ctx context.Context, filter RetrievalFilter, limit int) ([]PublishedKnowledge, error) {
+	if limit <= 0 || limit > 50 { limit = 20 }
+	cropID := strings.TrimSpace(filter.CropID)
+	stageID := strings.TrimSpace(filter.GrowthStageID)
+	q := strings.TrimSpace(filter.Query)
+	rows, err := s.db.Query(ctx, publishedRetrievalQuery, cropID, stageID, q, limit)
 	if err != nil { return nil, err }
 	defer rows.Close()
 	result := make([]PublishedKnowledge, 0)
