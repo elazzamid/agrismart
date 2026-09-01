@@ -59,3 +59,15 @@ func TestPublishRequiresSourceBackedLatestApprovedVersion(t *testing.T) {
 	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
 	if err := db.ExpectationsWereMet(); err != nil { t.Fatal(err) }
 }
+
+func TestPublishRequiresLatestValidationDecision(t *testing.T) {
+	db, err := pgxmock.NewPool()
+	if err != nil { t.Fatal(err) }
+	defer db.Close()
+	s := NewService(db)
+	db.ExpectExec(`(?s).*kv\.decision = 'approved'.*NOT EXISTS \(\s*SELECT 1 FROM knowledge_validations kv2\s*WHERE kv2\.version_id = v\.id AND \(kv2\.validated_at, kv2\.id\) > \(kv\.validated_at, kv\.id\)\s*\).*`).
+		WithArgs("d1", "v1").
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
+	if err := db.ExpectationsWereMet(); err != nil { t.Fatal(err) }
+}
