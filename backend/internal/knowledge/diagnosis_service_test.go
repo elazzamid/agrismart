@@ -31,3 +31,27 @@ func TestDiagnosePublishedUsesLatestVersionOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDiagnosePublishedRequiresLatestValidationApproved(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewService(pool)
+
+	pool.ExpectQuery(`(?s)SELECT DISTINCT d\.id, d\.slug, d\.title,.*knowledge_validations kv\s*WHERE kv\.version_id=v\.id AND kv\.decision='approved'\s*AND NOT EXISTS \(\s*SELECT 1 FROM knowledge_validations kv2\s*WHERE kv2\.version_id=v\.id\s*AND \(kv2\.validated_at, kv2\.id\) > \(kv\.validated_at, kv\.id\)`).
+		WithArgs("crop-1", []string{"leaf spot"}, 10).
+		WillReturnRows(pgxmock.NewRows([]string{"id", "slug", "title", "problem_type", "problem_id", "score", "content"}))
+
+	items, err := s.DiagnosePublished(context.Background(), "crop-1", []string{"leaf spot"}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected no candidates when latest validation is not approved: %+v", items)
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
