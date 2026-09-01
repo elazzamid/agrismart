@@ -131,7 +131,7 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 }
 
 func (s *Service) Publish(ctx context.Context, documentID, versionID string) error {
-	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND EXISTS (
+	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND NULLIF(BTRIM(d.author_name), '') IS NOT NULL AND EXISTS (
 		SELECT 1 FROM knowledge_versions v
 		JOIN knowledge_validations kv ON kv.version_id = v.id
 		WHERE v.id = $2 AND v.document_id = d.id AND v.source_id IS NOT NULL AND kv.decision = 'approved'
