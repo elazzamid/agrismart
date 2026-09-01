@@ -25,8 +25,6 @@ jobs:
           docker compose logs postgres
           exit 1
       - name: Verify database
-        env:
-          DB_CONTAINER: agrismart-postgres-1
         run: sh scripts/verify-database.sh
       - name: Dump PostgreSQL logs on failure
         if: failure()
