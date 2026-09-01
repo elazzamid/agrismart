@@ -16,19 +16,12 @@ TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -
   exit 1
 }
 
-printf '%s\n' "Checking core constraints..."
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
-SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check';
-SELECT 1 FROM pg_constraint WHERE conname = 'farms_latitude_check';
-SELECT 1 FROM pg_constraint WHERE conname = 'farms_longitude_check';
-SELECT 1 FROM pg_constraint WHERE conname = 'farm_plots_area_check';
-SELECT 1 FROM pg_constraint WHERE conname = 'crop_varieties_crop_name_unique';
-SELECT 1 FROM pg_constraint WHERE conname = 'crop_growth_stages_sequence_unique';
-SELECT 1 FROM pg_constraint WHERE conname = 'crop_cycles_status_check';
+printf '%s\n' "Checking core and knowledge constraints..."
+CONSTRAINT_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM pg_constraint WHERE conname IN ('users_role_check','farms_latitude_check','farms_longitude_check','farm_plots_area_check','crop_varieties_crop_name_unique','crop_growth_stages_sequence_unique','crop_cycles_status_check','fertilizer_nutrients_percentage_check','fertilizer_nutrients_percentage_range_check');")"
 
-printf '%s\n' "Checking knowledge constraints..."
-SELECT 1 FROM pg_constraint WHERE conname = 'fertilizer_nutrients_percentage_check';
-SELECT 1 FROM pg_constraint WHERE conname = 'fertilizer_nutrients_percentage_range_check';
-SQL
+[ "$CONSTRAINT_COUNT" = "9" ] || {
+  echo "Expected 9 required constraints, found $CONSTRAINT_COUNT" >&2
+  exit 1
+}
 
 printf '%s\n' "Database verification: PASS"
