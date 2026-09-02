@@ -17,7 +17,7 @@ SELECT d.id, 1,
 'Panduan edukasi dasar: budidaya cabai perlu dilakukan secara bertahap dan terencana, mulai dari penyediaan benih, persiapan lahan, penanaman, pengairan, pemeliharaan dan pemupukan, pemasangan penyangga tanaman, sanitasi, pengendalian organisme pengganggu tumbuhan (OPT), hingga panen. Pelaksanaan di lapangan perlu disesuaikan dengan kondisi lokasi dan pedoman teknis yang berlaku.',
 s.id
 FROM knowledge_documents d
-JOIN knowledge_sources s ON s.title = 'Standar operasional prosedur (SOP) budidaya cabai rawit'
+JOIN knowledge_sources s ON s.title = 'Standar Operasional Prosedur Budidaya Cabai Rawit'
 WHERE d.slug = 'cabai-rawit-budidaya-dasar'
   AND NOT EXISTS (SELECT 1 FROM knowledge_versions v WHERE v.document_id = d.id AND v.version_no = 1);
 
