@@ -68,7 +68,7 @@ func (s *Service) AddVersion(ctx context.Context, documentID string, version int
 	if status == "validated" || status == "published" || status == "archived" {
 		return ErrInvalidTransition
 	}
-	_, err := s.db.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, $4)`, documentID, version, strings.TrimSpace(content), sourceID)
+	_, err := s.db.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, NULLIF(BTRIM($4), ''))`, documentID, version, strings.TrimSpace(content), sourceID)
 	return err
 }
 
@@ -134,7 +134,7 @@ func (s *Service) Publish(ctx context.Context, documentID, versionID string) err
 	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND NULLIF(BTRIM(d.author_name), '') IS NOT NULL AND EXISTS (
 		SELECT 1 FROM knowledge_versions v
 		JOIN knowledge_validations kv ON kv.version_id = v.id
-		WHERE v.id = $2 AND v.document_id = d.id AND v.source_id IS NOT NULL AND kv.decision = 'approved'
+		WHERE v.id = $2 AND v.document_id = d.id AND NULLIF(BTRIM(v.source_id), '') IS NOT NULL AND kv.decision = 'approved'
 		AND NOT EXISTS (
 			SELECT 1 FROM knowledge_validations kv2
 			WHERE kv2.version_id = v.id AND (kv2.validated_at, kv2.id) > (kv.validated_at, kv.id)
