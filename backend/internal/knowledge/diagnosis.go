@@ -46,6 +46,7 @@ func (s *Service) DiagnosePublished(ctx context.Context, cropID string, symptoms
         LEFT JOIN knowledge_disease_links kd ON kd.document_id=d.id
         WHERE d.status='published'
           AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
+          AND NULLIF(BTRIM(v.source_id), '') IS NOT NULL
           AND ($1='' OR EXISTS (SELECT 1 FROM knowledge_crop_links k WHERE k.document_id=d.id AND k.crop_id::text=$1))
           AND (kp.pest_id IS NOT NULL) <> (kd.disease_id IS NOT NULL)
           AND EXISTS (
