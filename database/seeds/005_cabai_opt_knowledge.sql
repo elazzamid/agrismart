@@ -17,7 +17,7 @@ SELECT d.id, 1,
 'Pengendalian OPT pada cabai perlu diawali pengamatan berkala untuk mengenali jenis OPT serta luas dan intensitas serangan. Tindakan pengendalian dipilih berdasarkan kondisi pertanaman dan prinsip Pengendalian Hama Terpadu (PHT). Cara non-kimia dan tindakan budidaya perlu dipertimbangkan terlebih dahulu; pestisida bukan pilihan pertama dan penggunaannya harus mengikuti ketentuan label serta aturan yang berlaku.',
 s.id
 FROM knowledge_documents d
-JOIN knowledge_sources s ON s.title = 'HAMA DAN PENYAKIT PADA TANAMAN CABAI SERTA PENGENDALIANNYA'
+JOIN knowledge_sources s ON s.title = 'Hama dan Penyakit pada Tanaman Cabai serta Pengendaliannya'
 WHERE d.slug = 'cabai-pht-dasar'
   AND NOT EXISTS (SELECT 1 FROM knowledge_versions v WHERE v.document_id = d.id AND v.version_no = 1);
 
