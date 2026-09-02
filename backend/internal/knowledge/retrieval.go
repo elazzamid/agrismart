@@ -30,6 +30,7 @@ JOIN LATERAL (
   SELECT v1.* FROM knowledge_versions v1
   WHERE v1.document_id=d.id
     AND v1.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
+    AND NULLIF(BTRIM(v1.source_id), '') IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM knowledge_validations kv
       WHERE kv.version_id=v1.id AND kv.decision='approved'
