@@ -10,6 +10,7 @@ func TestRetrievalContract(t *testing.T) {
 	for _, required := range []string{
 		"d.status='published'",
 		"v1.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)",
+		"NULLIF(BTRIM(v1.source_id), '') IS NOT NULL",
 		"kv.decision='approved'",
 		"NOT EXISTS (",
 	} {
