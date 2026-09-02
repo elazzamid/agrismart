@@ -53,7 +53,7 @@ func TestPublishRequiresSourceBackedLatestApprovedVersion(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	defer db.Close()
 	s := NewService(db)
-	db.ExpectExec(`(?s).*v\.source_id IS NOT NULL.*kv\.decision = 'approved'.*v\.version_no = \(SELECT MAX\(v2\.version_no\).*`).
+	db.ExpectExec(`(?s).*NULLIF\(BTRIM\(v\.source_id\), ''\) IS NOT NULL.*kv\.decision = 'approved'.*v\.version_no = \(SELECT MAX\(v2\.version_no\).*`).
 		WithArgs("d1", "v1").
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 	if err := s.Publish(context.Background(), "d1", "v1"); err != nil { t.Fatal(err) }
