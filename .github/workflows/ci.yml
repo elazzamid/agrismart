@@ -64,7 +64,9 @@ jobs:
         run: go mod download
 
       - name: Show module tidy diff
-        run: go mod tidy -diff
+        run: |
+          go mod tidy
+          git diff -- go.mod go.sum
 
       - name: Test
         run: go test ./...
