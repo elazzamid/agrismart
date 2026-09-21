@@ -63,6 +63,9 @@ jobs:
       - name: Verify dependencies
         run: go mod download
 
+      - name: Normalize Go module metadata
+        run: go mod tidy
+
       - name: Test
         run: go test ./...
 
