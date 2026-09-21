@@ -63,6 +63,9 @@ jobs:
       - name: Verify dependencies
         run: go mod download
 
+      - name: Show module tidy diff
+        run: go mod tidy -diff
+
       - name: Test
         run: go test ./...
 
