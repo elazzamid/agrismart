@@ -11,6 +11,13 @@ import (
 
 var ErrNotFound = errors.New("farm not found")
 
+// queryer captures the database operations used by the farm service and keeps
+// the service directly testable with pgxmock.
+type queryer interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 // Farm is the farmer-owned agricultural location.
 type Farm struct {
 	ID           string  `json:"id"`
@@ -28,9 +35,11 @@ type CreateInput struct {
 	Longitude    *float64 `json:"longitude"`
 }
 
-type Service struct { db *pgxpool.Pool }
+type Service struct { db queryer }
 
 func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
+
+func newService(db queryer) *Service { return &Service{db: db} }
 
 func (s *Service) Create(ctx context.Context, farmerID string, in CreateInput) (Farm, error) {
 	if strings.TrimSpace(in.Name) == "" {
