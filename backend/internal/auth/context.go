@@ -4,7 +4,7 @@ import "context"
 
 type contextKey struct{}
 
-const userContextKey contextKey = 0
+var userContextKey contextKey
 
 func WithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, userContextKey, userID)
