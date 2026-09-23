@@ -51,10 +51,13 @@ func TestCatalogServiceListGrowthStagesOrdersBySequence(t *testing.T) {
 	pool.ExpectQuery(`SELECT id, crop_id, name, sequence_no, min_days, max_days, COALESCE\(description, ''\) FROM crop_growth_stages WHERE crop_id = \$1 ORDER BY sequence_no`).
 		WithArgs(cropID).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "crop_id", "name", "sequence_no", "min_days", "max_days", "description"}).
-			AddRow("00000000-0000-0000-0000-000000000003", cropID, "Vegetatif", 1, 0, 30, "Awal pertumbuhan"))
+			AddRow("00000000-0000-0000-0000-000000000003", cropID, "Vegetatif", 1, int32(0), int32(30), "Awal pertumbuhan"))
 
 	got, err := s.ListGrowthStages(context.Background(), cropID)
 	if err != nil { t.Fatalf("ListGrowthStages() error = %v", err) }
 	if len(got) != 1 || got[0].SequenceNo != 1 { t.Fatalf("unexpected stages: %+v", got) }
+	if got[0].MinDays == nil || *got[0].MinDays != 0 || got[0].MaxDays == nil || *got[0].MaxDays != 30 {
+		t.Fatalf("unexpected day range: %+v", got[0])
+	}
 	if err := pool.ExpectationsWereMet(); err != nil { t.Fatalf("expectations: %v", err) }
 }
