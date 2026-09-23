@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/elazzamid/agrismart/backend/internal/auth"
+	"github.com/elazzamid/agrismart/backend/internal/farm"
 	"github.com/elazzamid/agrismart/backend/internal/platform"
 )
 
@@ -25,12 +26,18 @@ func main() {
 	}
 	authService := auth.NewService(db, tokens)
 	authHandler := auth.NewHandler(authService)
+	farmService := farm.NewService(db)
+	farmHandler := farm.NewHandler(farmService)
+	authenticated := authHandler.Authenticated
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", healthHandler)
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
-	mux.Handle("GET /api/v1/auth/me", authHandler.Authenticated(http.HandlerFunc(authHandler.Me)))
+	mux.Handle("GET /api/v1/auth/me", authenticated(http.HandlerFunc(authHandler.Me)))
+	mux.Handle("GET /api/v1/farms", authenticated(http.HandlerFunc(farmHandler.List)))
+	mux.Handle("POST /api/v1/farms", authenticated(http.HandlerFunc(farmHandler.Create)))
+	mux.Handle("GET /api/v1/farms/{id}", authenticated(http.HandlerFunc(farmHandler.Get)))
 
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
