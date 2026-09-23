@@ -27,7 +27,8 @@ func main() {
 	authService := auth.NewService(db, tokens)
 	authHandler := auth.NewHandler(authService)
 	farmService := farm.NewService(db)
-	farmHandler := farm.NewHandler(farmService)
+	plotService := farm.NewPlotService(db)
+	farmHandler := farm.NewHandler(farmService, plotService)
 	authenticated := authHandler.Authenticated
 
 	mux := http.NewServeMux()
@@ -38,6 +39,8 @@ func main() {
 	mux.Handle("GET /api/v1/farms", authenticated(http.HandlerFunc(farmHandler.List)))
 	mux.Handle("POST /api/v1/farms", authenticated(http.HandlerFunc(farmHandler.Create)))
 	mux.Handle("GET /api/v1/farms/{id}", authenticated(http.HandlerFunc(farmHandler.Get)))
+	mux.Handle("GET /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.ListPlots)))
+	mux.Handle("POST /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.CreatePlot)))
 
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
