@@ -28,7 +28,8 @@ func main() {
 	authHandler := auth.NewHandler(authService)
 	farmService := farm.NewService(db)
 	plotService := farm.NewPlotService(db)
-	farmHandler := farm.NewHandler(farmService, plotService)
+	catalogService := farm.NewCatalogService(db)
+	farmHandler := farm.NewHandler(farmService, plotService, catalogService)
 	authenticated := authHandler.Authenticated
 
 	mux := http.NewServeMux()
@@ -41,6 +42,10 @@ func main() {
 	mux.Handle("GET /api/v1/farms/{id}", authenticated(http.HandlerFunc(farmHandler.Get)))
 	mux.Handle("GET /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.ListPlots)))
 	mux.Handle("POST /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.CreatePlot)))
+	mux.Handle("GET /api/v1/crops", authenticated(http.HandlerFunc(farmHandler.ListCrops)))
+	mux.Handle("GET /api/v1/crops/{id}", authenticated(http.HandlerFunc(farmHandler.GetCrop)))
+	mux.Handle("GET /api/v1/crops/{id}/varieties", authenticated(http.HandlerFunc(farmHandler.ListVarieties)))
+	mux.Handle("GET /api/v1/crops/{id}/growth-stages", authenticated(http.HandlerFunc(farmHandler.ListGrowthStages)))
 
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
