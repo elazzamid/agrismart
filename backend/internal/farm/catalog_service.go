@@ -3,6 +3,7 @@ package farm
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -88,7 +89,7 @@ func (s *CatalogService) ListVarieties(ctx context.Context, cropID string) ([]Cr
 }
 
 func (s *CatalogService) ListGrowthStages(ctx context.Context, cropID string) ([]CropGrowthStage, error) {
-	rows, err := s.db.Query(ctx, `SELECT id, crop_id, name, sequence_no, min_days::bigint, max_days::bigint, COALESCE(description, '') FROM crop_growth_stages WHERE crop_id = $1 ORDER BY sequence_no`, cropID)
+	rows, err := s.db.Query(ctx, `SELECT id, crop_id, name, sequence_no, min_days::text, max_days::text, COALESCE(description, '') FROM crop_growth_stages WHERE crop_id = $1 ORDER BY sequence_no`, cropID)
 	if err != nil {
 		return nil, err
 	}
@@ -96,16 +97,22 @@ func (s *CatalogService) ListGrowthStages(ctx context.Context, cropID string) ([
 	stages := make([]CropGrowthStage, 0)
 	for rows.Next() {
 		var stage CropGrowthStage
-		var minDays, maxDays *int64
+		var minDays, maxDays *string
 		if err := rows.Scan(&stage.ID, &stage.CropID, &stage.Name, &stage.SequenceNo, &minDays, &maxDays, &stage.Description); err != nil {
 			return nil, err
 		}
 		if minDays != nil {
-			value := int(*minDays)
+			value, err := strconv.Atoi(*minDays)
+			if err != nil {
+				return nil, err
+			}
 			stage.MinDays = &value
 		}
 		if maxDays != nil {
-			value := int(*maxDays)
+			value, err := strconv.Atoi(*maxDays)
+			if err != nil {
+				return nil, err
+			}
 			stage.MaxDays = &value
 		}
 		stages = append(stages, stage)
