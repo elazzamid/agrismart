@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Crop struct {
@@ -97,19 +98,19 @@ func (s *CatalogService) ListGrowthStages(ctx context.Context, cropID string) ([
 	stages := make([]CropGrowthStage, 0)
 	for rows.Next() {
 		var stage CropGrowthStage
-		var minDays, maxDays *string
+		var minDays, maxDays pgtype.Text
 		if err := rows.Scan(&stage.ID, &stage.CropID, &stage.Name, &stage.SequenceNo, &minDays, &maxDays, &stage.Description); err != nil {
 			return nil, err
 		}
-		if minDays != nil {
-			value, err := strconv.Atoi(*minDays)
+		if minDays.Valid {
+			value, err := strconv.Atoi(minDays.String)
 			if err != nil {
 				return nil, err
 			}
 			stage.MinDays = &value
 		}
-		if maxDays != nil {
-			value, err := strconv.Atoi(*maxDays)
+		if maxDays.Valid {
+			value, err := strconv.Atoi(maxDays.String)
 			if err != nil {
 				return nil, err
 			}
