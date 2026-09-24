@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pashagolub/pgxmock/v4"
 )
 
@@ -51,7 +52,8 @@ func TestCatalogServiceListGrowthStagesOrdersBySequence(t *testing.T) {
 	pool.ExpectQuery(`SELECT id, crop_id, name, sequence_no, min_days::text, max_days::text, COALESCE\(description, ''\) FROM crop_growth_stages WHERE crop_id = \$1 ORDER BY sequence_no`).
 		WithArgs(cropID).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "crop_id", "name", "sequence_no", "min_days", "max_days", "description"}).
-			AddRow("00000000-0000-0000-0000-000000000003", cropID, "Vegetatif", 1, "0", "30", "Awal pertumbuhan"))
+			AddRow("00000000-0000-0000-0000-000000000003", cropID, "Vegetatif", 1,
+				pgtype.Text{String: "0", Valid: true}, pgtype.Text{String: "30", Valid: true}, "Awal pertumbuhan"))
 
 	got, err := s.ListGrowthStages(context.Background(), cropID)
 	if err != nil { t.Fatalf("ListGrowthStages() error = %v", err) }
