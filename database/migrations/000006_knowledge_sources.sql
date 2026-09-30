@@ -46,3 +46,7 @@ CREATE TABLE knowledge_validations (
 
 CREATE INDEX idx_knowledge_versions_document_id ON knowledge_versions(document_id);
 CREATE INDEX idx_knowledge_validations_version_id ON knowledge_validations(version_id);
+
+CREATE UNIQUE INDEX idx_knowledge_sources_source_url_unique
+    ON knowledge_sources(source_url)
+    WHERE source_url IS NOT NULL;
