@@ -151,25 +151,22 @@ A farmer can:
 
 ## 14. Milestones
 ### M001 — Technical Foundation
-Repository structure, backend/frontend skeleton, PostgreSQL, configuration, health endpoint, initial schema, authentication foundation, Docker development environment, automated verification, Git workflow.
+Repository structure, backend/frontend skeleton, PostgreSQL, configuration, health endpoint, initial schema, authentication foundation, Docker development environment, automated verification, Git workflow. Farm/plot/crop/variety/growth-stage foundations are tracked as the M001.6 slice.
 
-### M002 — Core Farm Domain
-Farm, plot, crop, variety, growth-stage models and APIs.
+### M002 — Knowledge Base
+Crop, fertilizer, pest, disease, weed, pesticide and guide management, with source-backed validation and publication guardrails.
 
-### M003 — Knowledge Base
-Crop, fertilizer, pest, disease, weed, pesticide and guide management.
-
-### M004 — Farm Operations
+### M003 — Farm Operations
 Activities, inputs, expenses, harvest.
 
-### M005 — Farmer Experience
+### M004 — Farmer Experience
 Mobile-first dashboard and workflows.
 
-### M006 — AI Foundation
+### M005 — AI Foundation
 Knowledge retrieval, chat, provenance and safety controls.
 
-### M007 — Smart Features
+### M006 — Smart Features
 Image diagnosis, weather, notifications.
 
-### M008 — Ecosystem
+### M007 — Ecosystem
 Experts, groups, suppliers, marketplace.
