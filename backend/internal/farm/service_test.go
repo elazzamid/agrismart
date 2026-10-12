@@ -20,7 +20,7 @@ func TestServiceCreateResolvesAuthenticatedUserToFarmerProfile(t *testing.T) {
 	farmID := "30000000-0000-0000-0000-000000000003"
 
 	pool.ExpectQuery(`INSERT INTO farms \(farmer_id, name, location_name, latitude, longitude\)\s+SELECT fp.id, \$2, NULLIF\(\$3, ''\), \$4, \$5\s+FROM farmer_profiles fp\s+WHERE fp.user_id = \$1\s+RETURNING id, farmer_id, name, COALESCE\(location_name, ''\), latitude, longitude`).
-		WithArgs(userID, "Kebun Utama", "Desa A", nil, nil).
+		WithArgs(userID, "Kebun Utama", "Desa A", (*float64)(nil), (*float64)(nil)).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "farmer_id", "name", "location_name", "latitude", "longitude"}).
 			AddRow(farmID, profileID, "Kebun Utama", "Desa A", nil, nil))
 
