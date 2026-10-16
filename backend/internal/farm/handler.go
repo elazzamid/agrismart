@@ -10,13 +10,19 @@ import (
 )
 
 type Handler struct {
-	service       *Service
-	plotService   *PlotService
-	catalogService *CatalogService
+	service           *Service
+	plotService       *PlotService
+	catalogService    *CatalogService
+	cropCycleService  *CropCycleService
 }
 
-func NewHandler(service *Service, plotService *PlotService, catalogService *CatalogService) *Handler {
-	return &Handler{service: service, plotService: plotService, catalogService: catalogService}
+func NewHandler(service *Service, plotService *PlotService, catalogService *CatalogService, cropCycleService *CropCycleService) *Handler {
+	return &Handler{
+		service: service,
+		plotService: plotService,
+		catalogService: catalogService,
+		cropCycleService: cropCycleService,
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
@@ -128,4 +134,61 @@ func (h *Handler) ListGrowthStages(w http.ResponseWriter, r *http.Request) {
 	stages, err := h.catalogService.ListGrowthStages(r.Context(), cropID)
 	if err != nil { writeError(w, http.StatusInternalServerError, "internal server error"); return }
 	writeJSON(w, http.StatusOK, stages)
+}
+
+
+// CreateCropCycle creates a crop cycle for a plot owned by the authenticated user.
+func (h *Handler) CreateCropCycle(w http.ResponseWriter, r *http.Request) {
+	id, ok := userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	plotID := strings.TrimPrefix(r.URL.Path, "/api/v1/plots/")
+	plotID = strings.TrimSuffix(plotID, "/crop-cycles")
+	plotID = strings.TrimSuffix(plotID, "/")
+	if plotID == "" || plotID == r.URL.Path {
+		writeError(w, http.StatusBadRequest, "plot id is required")
+		return
+	}
+
+	var in CreateCropCycleInput
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	cycle, err := h.cropCycleService.Create(r.Context(), id, plotID, in)
+	if errors.Is(err, ErrCropCycleNotFound) {
+		writeError(w, http.StatusNotFound, "plot not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, cycle)
+}
+
+// ListCropCycles lists crop cycles for a plot owned by the authenticated user.
+func (h *Handler) ListCropCycles(w http.ResponseWriter, r *http.Request) {
+	id, ok := userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	plotID := strings.TrimPrefix(r.URL.Path, "/api/v1/plots/")
+	plotID = strings.TrimSuffix(plotID, "/crop-cycles")
+	plotID = strings.TrimSuffix(plotID, "/")
+	if plotID == "" || plotID == r.URL.Path {
+		writeError(w, http.StatusBadRequest, "plot id is required")
+		return
+	}
+	cycles, err := h.cropCycleService.List(r.Context(), id, plotID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	writeJSON(w, http.StatusOK, cycles)
 }
