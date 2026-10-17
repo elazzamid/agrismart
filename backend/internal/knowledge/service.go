@@ -59,17 +59,30 @@ func (s *Service) AddVersion(ctx context.Context, documentID string, version int
 	if version < 1 || strings.TrimSpace(content) == "" {
 		return errors.New("version and content are required")
 	}
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	var status string
-	if err := s.db.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1`, documentID).Scan(&status); errors.Is(err, pgx.ErrNoRows) {
+	err = tx.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1 FOR UPDATE`, documentID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrDocumentNotFound
-	} else if err != nil {
+	}
+	if err != nil {
 		return err
 	}
 	if status == "validated" || status == "published" || status == "archived" {
 		return ErrInvalidTransition
 	}
-	_, err := s.db.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, NULLIF(BTRIM($4), ''))`, documentID, version, strings.TrimSpace(content), sourceID)
-	return err
+
+	_, err = tx.Exec(ctx, `INSERT INTO knowledge_versions (document_id, version_no, content, source_id) VALUES ($1, $2, $3, NULLIF(BTRIM($4), ''))`, documentID, version, strings.TrimSpace(content), sourceID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Service) Validate(ctx context.Context, documentID string, versionID, validator, decision, notes string) error {
@@ -80,21 +93,16 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 	if decision != "approved" && decision != "rejected" && decision != "needs_revision" {
 		return errors.New("invalid validation decision")
 	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	var exists bool
-	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM knowledge_versions WHERE id = $1 AND document_id = $2)`, versionID, documentID).Scan(&exists)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return ErrDocumentNotFound
-	}
+
+	// Serialize validation with version creation and publication for this document.
 	var status string
-	err = tx.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1`, documentID).Scan(&status)
+	err = tx.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1 FOR UPDATE`, documentID).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrDocumentNotFound
 	}
@@ -104,6 +112,16 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 	if status == "published" || status == "archived" {
 		return ErrInvalidTransition
 	}
+
+	var exists bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM knowledge_versions WHERE id = $1 AND document_id = $2)`, versionID, documentID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrDocumentNotFound
+	}
+
 	_, err = tx.Exec(ctx, `INSERT INTO knowledge_validations (version_id, validator_name, decision, notes) VALUES ($1, $2, $3, NULLIF($4, ''))`, versionID, validator, decision, strings.TrimSpace(notes))
 	if err != nil {
 		return err
@@ -131,7 +149,26 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 }
 
 func (s *Service) Publish(ctx context.Context, documentID, versionID string) error {
-	result, err := s.db.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND NULLIF(BTRIM(d.author_name), '') IS NOT NULL AND EXISTS (
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the document first so AddVersion and Validate cannot race this transition.
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM knowledge_documents WHERE id = $1 FOR UPDATE`, documentID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrDocumentNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if status != "validated" {
+		return ErrInvalidTransition
+	}
+
+	result, err := tx.Exec(ctx, `UPDATE knowledge_documents d SET status = 'published', updated_at = NOW() WHERE d.id = $1 AND d.status = 'validated' AND NULLIF(BTRIM(d.author_name), '') IS NOT NULL AND EXISTS (
 		SELECT 1 FROM knowledge_versions v
 		JOIN knowledge_validations kv ON kv.version_id = v.id
 		WHERE v.id = $2 AND v.document_id = d.id AND NULLIF(BTRIM(v.source_id), '') IS NOT NULL AND kv.decision = 'approved'
@@ -147,5 +184,5 @@ func (s *Service) Publish(ctx context.Context, documentID, versionID string) err
 	if result.RowsAffected() == 0 {
 		return ErrInvalidTransition
 	}
-	return nil
+	return tx.Commit(ctx)
 }
