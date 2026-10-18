@@ -7,29 +7,22 @@ import (
 	"github.com/pashagolub/pgxmock/v4"
 )
 
-func TestCropCycleCreateScopesThroughFarmAndPlotOwner(t *testing.T) {
+func TestCropCycleCreateScopesThroughAuthenticatedUserAndPlot(t *testing.T) {
 	pool, err := pgxmock.NewPool()
-	if err != nil {
-		t.Fatal(err)
-	}
+	if err != nil { t.Fatal(err) }
 	defer pool.Close()
 	s := NewCropCycleService(pool)
-	farmerID := "00000000-0000-0000-0000-000000000001"
-	farmID := "00000000-0000-0000-0000-000000000005"
-	plotID := "00000000-0000-0000-0000-000000000002"
-	cropID := "00000000-0000-0000-0000-000000000003"
-	cycleID := "00000000-0000-0000-0000-000000000004"
-	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$4, \$5, \$6::date\s+FROM farm_plots p JOIN farms f ON f.id = p.farm_id\s+WHERE p.id = \$1 AND p.farm_id = \$2 AND f.farmer_id = \$3`).
-		WithArgs(plotID, farmID, farmerID, cropID, nil, "2026-08-01").
+	userID := "10000000-0000-0000-0000-000000000001"
+	farmID := "30000000-0000-0000-0000-000000000005"
+	plotID := "40000000-0000-0000-0000-000000000002"
+	cropID := "50000000-0000-0000-0000-000000000003"
+	profileID := "20000000-0000-0000-0000-000000000006"
+	cycleID := "60000000-0000-0000-0000-000000000004"
+	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$4, \$5, \$6::date\s+FROM farm_plots p\s+JOIN farms f ON f.id = p.farm_id\s+JOIN farmer_profiles fp ON fp.id = f.farmer_id\s+WHERE p.id = \$1 AND p.farm_id = \$2 AND fp.user_id = \$3`).
+		WithArgs(plotID, farmID, userID, cropID, nil, "2026-08-01").
 		WillReturnRows(pgxmock.NewRows([]string{"id", "plot_id", "crop_id", "variety_id", "planting_date", "status"}).AddRow(cycleID, plotID, cropID, nil, "2026-08-01", "active"))
-	got, err := s.Create(context.Background(), farmerID, farmID, plotID, CreateCropCycleInput{CropID: cropID, PlantingDate: "2026-08-01"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.ID != cycleID || got.PlotID != plotID {
-		t.Fatalf("unexpected cycle: %+v", got)
-	}
-	if err := pool.ExpectationsWereMet(); err != nil {
-		t.Fatal(err)
-	}
+	got, err := s.Create(context.Background(), userID, farmID, plotID, CreateCropCycleInput{CropID: cropID, PlantingDate: "2026-08-01"})
+	if err != nil { t.Fatal(err) }
+	if got.ID != cycleID || got.PlotID != plotID { t.Fatalf("unexpected cycle: %+v", got) }
+	if err := pool.ExpectationsWereMet(); err != nil { t.Fatal(err) }
 }
