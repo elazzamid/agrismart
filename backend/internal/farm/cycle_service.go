@@ -29,27 +29,27 @@ type CropCycleService struct{ db DBTX }
 
 func NewCropCycleService(db DBTX) *CropCycleService { return &CropCycleService{db: db} }
 
-func (s *CropCycleService) Create(ctx context.Context, farmerID, farmID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
+func (s *CropCycleService) Create(ctx context.Context, userID, farmID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
 	if strings.TrimSpace(in.CropID) == "" {
 		return CropCycle{}, errors.New("crop id is required")
 	}
 	if strings.TrimSpace(in.PlantingDate) == "" {
 		return CropCycle{}, errors.New("planting date is required")
 	}
-
 	varietyID := any(nil)
 	if in.VarietyID != nil {
 		varietyID = *in.VarietyID
 	}
-
 	var c CropCycle
 	err := s.db.QueryRow(ctx, `
 		INSERT INTO crop_cycles (plot_id, crop_id, variety_id, planting_date)
 		SELECT p.id, $4, $5, $6::date
-		FROM farm_plots p JOIN farms f ON f.id = p.farm_id
-		WHERE p.id = $1 AND p.farm_id = $2 AND f.farmer_id = $3
+		FROM farm_plots p
+		JOIN farms f ON f.id = p.farm_id
+		JOIN farmer_profiles fp ON fp.id = f.farmer_id
+		WHERE p.id = $1 AND p.farm_id = $2 AND fp.user_id = $3
 		RETURNING id, plot_id, crop_id, variety_id, planting_date::text, status`,
-		plotID, farmID, farmerID, in.CropID, varietyID, in.PlantingDate,
+		plotID, farmID, userID, in.CropID, varietyID, in.PlantingDate,
 	).Scan(&c.ID, &c.PlotID, &c.CropID, &c.VarietyID, &c.PlantingDate, &c.Status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CropCycle{}, ErrCropCycleNotFound
@@ -57,12 +57,15 @@ func (s *CropCycleService) Create(ctx context.Context, farmerID, farmID, plotID 
 	return c, err
 }
 
-func (s *CropCycleService) List(ctx context.Context, farmerID, farmID, plotID string) ([]CropCycle, error) {
+func (s *CropCycleService) List(ctx context.Context, userID, farmID, plotID string) ([]CropCycle, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT cc.id, cc.plot_id, cc.crop_id, cc.variety_id, cc.planting_date::text, cc.status
-		FROM crop_cycles cc JOIN farm_plots p ON p.id = cc.plot_id
+		FROM crop_cycles cc
+		JOIN farm_plots p ON p.id = cc.plot_id
 		JOIN farms f ON f.id = p.farm_id
-		WHERE cc.plot_id = $1 AND p.farm_id = $2 AND f.farmer_id = $3 ORDER BY cc.planting_date DESC`, plotID, farmID, farmerID)
+		JOIN farmer_profiles fp ON fp.id = f.farmer_id
+		WHERE cc.plot_id = $1 AND p.farm_id = $2 AND fp.user_id = $3
+		ORDER BY cc.planting_date DESC`, plotID, farmID, userID)
 	if err != nil {
 		return nil, err
 	}
