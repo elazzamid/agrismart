@@ -15,7 +15,7 @@ func TestDiagnoseBySymptomsRequiresLatestApprovedVersion(t *testing.T) {
     defer pool.Close()
     s := NewService(pool)
 
-    pool.ExpectQuery(`(?s)SELECT CASE WHEN ps\.pest_id IS NOT NULL THEN 'pest' ELSE 'disease' END,.*FROM problem_symptoms ps.*problem_symptom_sources pss.*d\.status='published'.*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'.*AND \(ps\.pest_id IS NOT NULL\) <> \(ps\.disease_id IS NOT NULL\)`).
+    pool.ExpectQuery(`(?s)SELECT CASE WHEN ps\.pest_id IS NOT NULL THEN 'pest' ELSE 'disease' END,.*FROM problem_symptoms ps.*problem_symptom_sources pss.*d\.status='published'.*NULLIF\(BTRIM\(v\.source_id\), ''\) IS NOT NULL.*v\.version_no = \(SELECT MAX\(v2\.version_no\) FROM knowledge_versions v2 WHERE v2\.document_id=d\.id\).*kv\.decision='approved'.*AND \(ps\.pest_id IS NOT NULL\) <> \(ps\.disease_id IS NOT NULL\)`).
         WithArgs([]string{"symptom-1"}, "crop-1", 10).
         WillReturnRows(pgxmock.NewRows([]string{"problem_type", "problem_id", "matched_symptoms", "score", "evidence"}).
             AddRow("disease", "disease-1", 1, 2, []string{"leaf spot"}))

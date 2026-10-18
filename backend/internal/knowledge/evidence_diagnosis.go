@@ -36,6 +36,7 @@ func (s *Service) DiagnoseBySymptoms(ctx context.Context, symptomIDs []string, c
               WHERE pss.symptom_id=ps.symptom_id
                 AND ((pss.pest_id IS NOT NULL AND pss.pest_id=ps.pest_id) OR (pss.disease_id IS NOT NULL AND pss.disease_id=ps.disease_id))
                 AND d.status='published'
+                AND NULLIF(BTRIM(v.source_id), '') IS NOT NULL
                 AND ($2='' OR EXISTS (SELECT 1 FROM knowledge_crop_links k WHERE k.document_id=d.id AND k.crop_id::text=$2))
                 AND v.version_no = (SELECT MAX(v2.version_no) FROM knowledge_versions v2 WHERE v2.document_id=d.id)
                 AND EXISTS (
