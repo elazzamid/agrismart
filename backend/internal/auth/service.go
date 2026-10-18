@@ -15,6 +15,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrWeakPassword       = errors.New("password must be at least 8 characters")
 	ErrInvalidEmail       = errors.New("invalid email")
+	ErrFullNameRequired   = errors.New("full name is required")
 )
 
 type User struct {
@@ -50,7 +51,7 @@ func (s *Service) Register(ctx context.Context, email, password, fullName, phone
 		return User{}, ErrWeakPassword
 	}
 	if strings.TrimSpace(fullName) == "" {
-		return User{}, errors.New("full name is required")
+		return User{}, ErrFullNameRequired
 	}
 
 	hash, err := HashPassword(password)
