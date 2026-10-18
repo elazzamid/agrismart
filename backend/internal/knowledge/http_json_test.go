@@ -4,20 +4,19 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-)
 
 func TestDecodeSingleJSON(t *testing.T) {
 	tests := []struct {
-		name    string
-		body    string
+		name string
+		body string
 		wantErr bool
 	}{
-		{name: "single object", body: `{"value":"ok"}`},
+		{name: "single object", body: "{\"value\":\"ok\"}"},
 		{name: "single object with whitespace", body: "  {\"value\":\"ok\"} \n"},
-		{name: "second JSON value", body: `{"value":"ok"} {"value":"unexpected"}`, wantErr: true},
-		{name: "trailing garbage", body: `{"value":"ok"} trailing`, wantErr: true},
+		{name: "second JSON value", body: "{\"value\":\"ok\"} {\"value\":\"unexpected\"}", wantErr: true},
+		{name: "trailing garbage", body: "{\"value\":\"ok\"} trailing", wantErr: true},
 		{name: "empty body", body: "", wantErr: true},
-		{name: "malformed JSON", body: `{"value":`, wantErr: true},
+		{name: "malformed JSON", body: "{\"value\":", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
