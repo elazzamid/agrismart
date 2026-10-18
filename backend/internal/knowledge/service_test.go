@@ -45,17 +45,25 @@ func TestPublishRejectsUnvalidatedDocument(t *testing.T) {
 	if err := pool.ExpectationsWereMet(); err != nil { t.Fatal(err) }
 }
 
-func TestPublishRequiresLatestVersion(t *testing.T) { expectPublishRejected(t) }
-func TestPublishRejectsVersionWithNewerNonApprovedValidation(t *testing.T) { expectPublishRejected(t) }
-func TestPublishRejectsMissingAuthor(t *testing.T) { expectPublishRejected(t) }
-func TestPublishRejectsBlankProvenanceSource(t *testing.T) { expectPublishRejected(t) }
+func TestPublishRequiresLatestVersion(t *testing.T) {
+ expectPublishRejected(t, `(?s).*NULLIF\(BTRIM\(d.author_name\), ''\) IS NOT NULL.*v.id = \$2.*NULLIF\(BTRIM\(v.source_id\), ''\) IS NOT NULL.*kv.decision = 'approved'.*NOT EXISTS.*v.version_no = \(SELECT MAX\(v2.version_no\).*`)
+}
+func TestPublishRejectsVersionWithNewerNonApprovedValidation(t *testing.T) {
+ expectPublishRejected(t, `(?s).*kv.decision = 'approved'.*NOT EXISTS \(\s*SELECT 1 FROM knowledge_validations kv2\s*WHERE kv2.version_id = v.id AND \(kv2.validated_at, kv2.id\) > \(kv.validated_at, kv.id\)\s*\).*`)
+}
+func TestPublishRejectsMissingAuthor(t *testing.T) {
+ expectPublishRejected(t, `(?s).*WHERE d.id = \$1 AND d.status = 'validated' AND NULLIF\(BTRIM\(d.author_name\), ''\) IS NOT NULL AND EXISTS.*`)
+}
+func TestPublishRejectsBlankProvenanceSource(t *testing.T) {
+ expectPublishRejected(t, `(?s).*v.id = \$2 AND v.document_id = d.id AND NULLIF\(BTRIM\(v.source_id\), ''\) IS NOT NULL AND kv.decision = 'approved'.*`)
+}
 
-func expectPublishRejected(t *testing.T) {
+func expectPublishRejected(t *testing.T, sqlPattern string) {
 	t.Helper()
 	pool, err := pgxmock.NewPool(); if err != nil { t.Fatal(err) }; defer pool.Close()
 	s := NewService(pool)
 	expectLockedStatus(pool, "validated")
-	pool.ExpectExec(`UPDATE knowledge_documents d SET status = 'published'`).
+	pool.ExpectExec(sqlPattern).
 		WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("UPDATE", 0))
 	pool.ExpectRollback()
 	if err := s.Publish(context.Background(), "doc", "version"); err != ErrInvalidTransition { t.Fatalf("expected invalid transition, got %v", err) }
