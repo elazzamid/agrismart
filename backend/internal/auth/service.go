@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,6 +16,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrWeakPassword       = errors.New("password must be at least 8 characters")
 	ErrInvalidEmail       = errors.New("invalid email")
+	ErrFullNameRequired   = errors.New("full name is required")
 )
 
 type User struct {
@@ -41,6 +43,11 @@ func validateEmail(email string) bool {
 	return err == nil && strings.Contains(email, "@")
 }
 
+func isEmailUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "users_email_key"
+}
+
 func (s *Service) Register(ctx context.Context, email, password, fullName, phone string) (User, error) {
 	email = normalizeEmail(email)
 	if !validateEmail(email) {
@@ -50,7 +57,7 @@ func (s *Service) Register(ctx context.Context, email, password, fullName, phone
 		return User{}, ErrWeakPassword
 	}
 	if strings.TrimSpace(fullName) == "" {
-		return User{}, errors.New("full name is required")
+		return User{}, ErrFullNameRequired
 	}
 
 	hash, err := HashPassword(password)
@@ -70,7 +77,7 @@ func (s *Service) Register(ctx context.Context, email, password, fullName, phone
 		VALUES ($1, $2, 'farmer')
 		RETURNING id, email, role`, email, hash).Scan(&user.ID, &user.Email, &user.Role)
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
+		if isEmailUniqueViolation(err) {
 			return User{}, ErrEmailExists
 		}
 		return User{}, err
