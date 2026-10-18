@@ -16,7 +16,6 @@ func TestCropCycleCreateScopesThroughAuthenticatedUserAndPlot(t *testing.T) {
 	farmID := "30000000-0000-0000-0000-000000000005"
 	plotID := "40000000-0000-0000-0000-000000000002"
 	cropID := "50000000-0000-0000-0000-000000000003"
-	profileID := "20000000-0000-0000-0000-000000000006"
 	cycleID := "60000000-0000-0000-0000-000000000004"
 	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$4, \$5, \$6::date\s+FROM farm_plots p\s+JOIN farms f ON f.id = p.farm_id\s+JOIN farmer_profiles fp ON fp.id = f.farmer_id\s+WHERE p.id = \$1 AND p.farm_id = \$2 AND fp.user_id = \$3`).
 		WithArgs(plotID, farmID, userID, cropID, nil, "2026-08-01").
