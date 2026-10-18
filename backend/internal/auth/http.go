@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -51,7 +52,18 @@ func writeError(w http.ResponseWriter, status int, message string) {
 func decodeJSON(r *http.Request, dst any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(dst)
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+
+	// Accept exactly one JSON value; reject trailing JSON values or garbage.
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("request body must contain only one JSON value")
+		}
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
