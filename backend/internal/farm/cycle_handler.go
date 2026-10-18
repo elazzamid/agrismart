@@ -1,7 +1,6 @@
 package farm
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -37,7 +36,7 @@ func (h *CropCycleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var in CreateCropCycleInput
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil {
+	if err := decodeSingleJSON(dec, &in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
