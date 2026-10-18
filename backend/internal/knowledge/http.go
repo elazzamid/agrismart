@@ -3,6 +3,7 @@ package knowledge
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -14,6 +15,21 @@ func NewHTTPHandler(service *Service) *HTTPHandler { return &HTTPHandler{service
 
 func jsonResponse(w http.ResponseWriter, status int, v any) { w.Header().Set("Content-Type", "application/json"); w.WriteHeader(status); _ = json.NewEncoder(w).Encode(v) }
 func jsonError(w http.ResponseWriter, status int, message string) { jsonResponse(w, status, map[string]string{"error": message}) }
+
+// decodeSingleJSON accepts exactly one JSON value and rejects trailing data.
+func decodeSingleJSON(dec *json.Decoder, dst any) error {
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
+}
 
 func requireRole(w http.ResponseWriter, r *http.Request, allowed ...string) bool {
 	got, ok := auth.RoleFromContext(r.Context())
@@ -32,7 +48,7 @@ func (h *HTTPHandler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	if !requireRole(w, r, "expert", "admin") { return }
 	var in CreateDocumentInput
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	d, err := h.service.CreateDocument(r.Context(), in.Slug, in.Title, in.Summary, in.AuthorName)
 	if err != nil { jsonError(w, http.StatusBadRequest, err.Error()); return }
 	jsonResponse(w, http.StatusCreated, d)
@@ -43,7 +59,7 @@ func (h *HTTPHandler) AddVersion(w http.ResponseWriter, r *http.Request) {
 	id := documentID(r.URL.Path, "/versions")
 	var in struct { Version int `json:"version"`; Content string `json:"content"`; SourceID *string `json:"source_id"` }
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if err := h.service.AddVersion(r.Context(), id, in.Version, in.Content, in.SourceID); err != nil {
 		status := http.StatusBadRequest; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
 		jsonError(w, status, err.Error()); return
@@ -56,7 +72,7 @@ func (h *HTTPHandler) Validate(w http.ResponseWriter, r *http.Request) {
 	id := documentID(r.URL.Path, "/validate")
 	var in struct { VersionID string `json:"version_id"`; ValidatorName string `json:"validator_name"`; Decision string `json:"decision"`; Notes string `json:"notes"` }
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if err := h.service.Validate(r.Context(), id, in.VersionID, in.ValidatorName, in.Decision, in.Notes); err != nil {
 		status := http.StatusBadRequest; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
 		jsonError(w, status, err.Error()); return
@@ -69,7 +85,7 @@ func (h *HTTPHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	id := documentID(r.URL.Path, "/publish")
 	var in struct { VersionID string `json:"version_id"` }
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if strings.TrimSpace(in.VersionID) == "" { jsonError(w, http.StatusBadRequest, "version_id is required"); return }
 	if err := h.service.Publish(r.Context(), id, in.VersionID); err != nil {
 		status := http.StatusConflict; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
