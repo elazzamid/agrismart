@@ -65,7 +65,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrEmailExists):
 			writeError(w, http.StatusConflict, err.Error())
-		case errors.Is(err, ErrInvalidEmail), errors.Is(err, ErrWeakPassword):
+		case errors.Is(err, ErrInvalidEmail), errors.Is(err, ErrWeakPassword), errors.Is(err, ErrFullNameRequired):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, "internal server error")
