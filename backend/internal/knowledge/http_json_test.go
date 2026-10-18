@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+ )
 
 func TestDecodeSingleJSON(t *testing.T) {
 	tests := []struct {
