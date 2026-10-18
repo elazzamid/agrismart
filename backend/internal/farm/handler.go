@@ -26,7 +26,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	id, ok := userID(r); if !ok { writeError(w, http.StatusUnauthorized, "unauthorized"); return }
 	var in CreateInput
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil { writeError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil { writeError(w, http.StatusBadRequest, "invalid request body"); return }
 	f, err := h.service.Create(r.Context(), id, in)
 	if err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	writeJSON(w, http.StatusCreated, f)
