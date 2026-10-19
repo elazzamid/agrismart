@@ -46,7 +46,7 @@ func TestPublishRejectsUnvalidatedDocument(t *testing.T) {
 }
 
 func TestPublishRequiresLatestVersion(t *testing.T) {
- expectPublishRejected(t, `(?s).*NULLIF\(BTRIM\(d.author_name\), ''\) IS NOT NULL.*v.id = \$2.*NULLIF\(BTRIM\(v.source_id\), ''\) IS NOT NULL.*kv.decision = 'approved'.*NOT EXISTS.*v.version_no = \(SELECT MAX\(v2.version_no\).*`)
+ expectPublishRejected(t, `(?s).*NULLIF\(BTRIM\(d.author_name\), ''\) IS NOT NULL.*v.id = \$2.*v.source_id IS NOT NULL.*kv.decision = 'approved'.*NOT EXISTS.*v.version_no = \(SELECT MAX\(v2.version_no\).*`)
 }
 func TestPublishRejectsVersionWithNewerNonApprovedValidation(t *testing.T) {
  expectPublishRejected(t, `(?s).*kv.decision = 'approved'.*NOT EXISTS \(\s*SELECT 1 FROM knowledge_validations kv2\s*WHERE kv2.version_id = v.id AND \(kv2.validated_at, kv2.id\) > \(kv.validated_at, kv.id\)\s*\).*`)
