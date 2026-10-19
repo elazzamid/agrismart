@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/elazzamid/agrismart/backend/internal/auth"
 	"github.com/elazzamid/agrismart/backend/internal/farm"
@@ -16,11 +17,15 @@ import (
 func main() {
 	ctx := context.Background()
 	db, err := platform.OpenDatabase(ctx)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
 	tokens, err := auth.NewTokenService()
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 	authService := auth.NewService(db, tokens)
 	authHandler := auth.NewHandler(authService)
 	farmService := farm.NewService(db)
@@ -32,6 +37,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", healthHandler)
+	mux.HandleFunc("GET /api/v1/ready", func(w http.ResponseWriter, r *http.Request) {
+		readinessHandler(w, r, db)
+	})
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.Handle("GET /api/v1/auth/me", authHandler.Authenticated(http.HandlerFunc(authHandler.Me)))
@@ -57,14 +65,43 @@ func main() {
 	mux.Handle("POST /api/v1/knowledge/documents/{id}/publish", protected(http.HandlerFunc(knowledgeHandler.Publish)))
 
 	addr := os.Getenv("API_ADDR")
-	if addr == "" { addr = ":8080" }
-	server := &http.Server{Addr: addr, Handler: mux}
+	if addr == "" {
+		addr = ":8080"
+	}
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	log.Printf("AgriSmart API listening on %s", addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed { log.Fatal(err) }
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
+}
+
+type databasePinger interface {
+	Ping(context.Context) error
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	writeStatusJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func readinessHandler(w http.ResponseWriter, r *http.Request, db databasePinger) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := db.Ping(ctx); err != nil {
+		writeStatusJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
+	writeStatusJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+}
+
+func writeStatusJSON(w http.ResponseWriter, status int, body map[string]string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
 }
