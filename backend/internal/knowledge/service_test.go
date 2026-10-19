@@ -96,9 +96,9 @@ func TestValidateOlderVersionDoesNotChangeDocumentStatus(t *testing.T) {
 
 			s := NewService(pool)
 			pool.ExpectBegin()
-			pool.ExpectQuery(`SELECT status FROM knowledge_documents WHERE id = \\$1 FOR UPDATE`).WithArgs("doc").
+			pool.ExpectQuery(`SELECT status FROM knowledge_documents WHERE id = \$1 FOR UPDATE`).WithArgs("doc").
 				WillReturnRows(pgxmock.NewRows([]string{"status"}).AddRow("validated"))
-			pool.ExpectQuery(`SELECT EXISTS\\(SELECT 1 FROM knowledge_versions WHERE id = \\$1 AND document_id = \\$2\\)`).
+			pool.ExpectQuery(`SELECT EXISTS\\(SELECT 1 FROM knowledge_versions WHERE id = \$1 AND document_id = \$2\\)`).
 				WithArgs("version-1", "doc").WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 			pool.ExpectExec(`INSERT INTO knowledge_validations`).WithArgs("version-1", "validator", decision, "").
 				WillReturnResult(pgxmock.NewResult("INSERT", 1))
