@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -58,5 +59,23 @@ func TestReadinessHandlerReturnsServiceUnavailableWhenDatabaseFails(t *testing.T
 	}
 	if got := rec.Body.String(); got != "{\"status\":\"not_ready\"}\n" {
 		t.Fatalf("readiness response must not expose internal error, got %q", got)
+	}
+}
+
+func TestLimitRequestBodyRejectsOversizedContentLength(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("next handler must not be called for oversized request")
+	})
+	handler := limitRequestBody(next, 4)
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader("12345"))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
+	}
+	if got := rec.Body.String(); got != "{\"error\":\"request body too large\"}\n" {
+		t.Fatalf("unexpected response body: %q", got)
 	}
 }
