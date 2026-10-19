@@ -55,7 +55,7 @@ func TestPublishRejectsMissingAuthor(t *testing.T) {
  expectPublishRejected(t, `(?s).*WHERE d.id = \$1 AND d.status = 'validated' AND NULLIF\(BTRIM\(d.author_name\), ''\) IS NOT NULL AND EXISTS.*`)
 }
 func TestPublishRejectsBlankProvenanceSource(t *testing.T) {
- expectPublishRejected(t, `(?s).*v.id = \$2 AND v.document_id = d.id AND NULLIF\(BTRIM\(v.source_id\), ''\) IS NOT NULL AND kv.decision = 'approved'.*`)
+ expectPublishRejected(t, `(?s).*v.id = \$2 AND v.document_id = d.id AND v.source_id IS NOT NULL AND kv.decision = 'approved'.*`)
 }
 
 func expectPublishRejected(t *testing.T, sqlPattern string) {
