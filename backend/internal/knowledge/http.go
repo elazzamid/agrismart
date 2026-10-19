@@ -1,0 +1,121 @@
+package knowledge
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/elazzamid/agrismart/backend/internal/auth"
+)
+
+type HTTPHandler struct{ service *Service }
+func NewHTTPHandler(service *Service) *HTTPHandler { return &HTTPHandler{service: service} }
+
+func jsonResponse(w http.ResponseWriter, status int, v any) { w.Header().Set("Content-Type", "application/json"); w.WriteHeader(status); _ = json.NewEncoder(w).Encode(v) }
+func jsonError(w http.ResponseWriter, status int, message string) { jsonResponse(w, status, map[string]string{"error": message}) }
+
+func decodeErrorStatus(err error) int {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		return http.StatusRequestEntityTooLarge
+	}
+	return http.StatusBadRequest
+}
+
+func decodeErrorMessage(err error) string {
+	if decodeErrorStatus(err) == http.StatusRequestEntityTooLarge {
+		return "request body too large"
+	}
+	return "invalid request body"
+}
+
+// decodeSingleJSON accepts exactly one JSON value and rejects trailing data.
+func decodeSingleJSON(dec *json.Decoder, dst any) error {
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("multiple JSON values")
+		}
+		return err
+	}
+	return nil
+}
+
+func requireRole(w http.ResponseWriter, r *http.Request, allowed ...string) bool {
+	got, ok := auth.RoleFromContext(r.Context())
+	if !ok { jsonError(w, http.StatusForbidden, "forbidden"); return false }
+	for _, want := range allowed { if got == want { return true } }
+	jsonError(w, http.StatusForbidden, "forbidden")
+	return false
+}
+
+func documentID(path, suffix string) string {
+	id := strings.TrimPrefix(path, "/api/v1/knowledge/documents/")
+	return strings.TrimSuffix(id, suffix)
+}
+
+func (h *HTTPHandler) CreateDocument(w http.ResponseWriter, r *http.Request) {
+	if !requireRole(w, r, "expert", "admin") { return }
+	var in CreateDocumentInput
+	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, decodeErrorStatus(err), decodeErrorMessage(err)); return }
+	d, err := h.service.CreateDocument(r.Context(), in.Slug, in.Title, in.Summary, in.AuthorName)
+	if err != nil {
+		if errors.Is(err, ErrInvalidDocumentInput) { jsonError(w, http.StatusBadRequest, err.Error()) } else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
+	jsonResponse(w, http.StatusCreated, d)
+}
+
+func (h *HTTPHandler) AddVersion(w http.ResponseWriter, r *http.Request) {
+	if !requireRole(w, r, "expert", "admin") { return }
+	id := documentID(r.URL.Path, "/versions")
+	var in struct { Version int `json:"version"`; Content string `json:"content"`; SourceID *string `json:"source_id"` }
+	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, decodeErrorStatus(err), decodeErrorMessage(err)); return }
+	if err := h.service.AddVersion(r.Context(), id, in.Version, in.Content, in.SourceID); err != nil {
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidVersionInput) { jsonError(w, http.StatusBadRequest, err.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
+	jsonResponse(w, http.StatusCreated, map[string]string{"status": "version_created"})
+}
+
+func (h *HTTPHandler) Validate(w http.ResponseWriter, r *http.Request) {
+	if !requireRole(w, r, "expert", "admin") { return }
+	id := documentID(r.URL.Path, "/validate")
+	var in struct { VersionID string `json:"version_id"`; ValidatorName string `json:"validator_name"`; Decision string `json:"decision"`; Notes string `json:"notes"` }
+	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, decodeErrorStatus(err), decodeErrorMessage(err)); return }
+	if err := h.service.Validate(r.Context(), id, in.VersionID, in.ValidatorName, in.Decision, in.Notes); err != nil {
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidValidationInput) { jsonError(w, http.StatusBadRequest, err.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]string{"status": "validated"})
+}
+
+func (h *HTTPHandler) Publish(w http.ResponseWriter, r *http.Request) {
+	if !requireRole(w, r, "admin") { return }
+	id := documentID(r.URL.Path, "/publish")
+	var in struct { VersionID string `json:"version_id"` }
+	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
+	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, decodeErrorStatus(err), decodeErrorMessage(err)); return }
+	if strings.TrimSpace(in.VersionID) == "" { jsonError(w, http.StatusBadRequest, "version_id is required"); return }
+	if err := h.service.Publish(r.Context(), id, in.VersionID); err != nil {
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
+	jsonResponse(w, http.StatusOK, map[string]string{"status": "published"})
+}
