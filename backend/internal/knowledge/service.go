@@ -135,15 +135,20 @@ func (s *Service) Validate(ctx context.Context, documentID string, versionID, va
 	if err != nil {
 		return err
 	}
-	status = "review"
-	if decision == "approved" && isLatest {
-		status = "validated"
-	}
-	if decision == "rejected" {
-		status = "draft"
-	}
-	if _, err = tx.Exec(ctx, `UPDATE knowledge_documents SET status = $2, updated_at = NOW() WHERE id = $1`, documentID, status); err != nil {
-		return err
+	// Only a validation of the latest version may change the document lifecycle.
+	// Historical validations remain in the audit trail without downgrading the
+	// status of a newer version that has already been reviewed or validated.
+	if isLatest {
+		status = "review"
+		if decision == "approved" {
+			status = "validated"
+		}
+		if decision == "rejected" {
+			status = "draft"
+		}
+		if _, err = tx.Exec(ctx, `UPDATE knowledge_documents SET status = $2, updated_at = NOW() WHERE id = $1`, documentID, status); err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }
