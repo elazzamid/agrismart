@@ -3,6 +3,7 @@ package knowledge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -12,6 +13,9 @@ import (
 var (
 	ErrDocumentNotFound  = errors.New("knowledge document not found")
 	ErrInvalidTransition = errors.New("invalid knowledge publication transition")
+	ErrInvalidDocumentInput = errors.New("invalid knowledge document input")
+	ErrInvalidVersionInput = errors.New("invalid knowledge version input")
+	ErrInvalidValidationInput = errors.New("invalid knowledge validation input")
 )
 
 type Document struct {
@@ -44,7 +48,7 @@ func NewService(db DBTX) *Service { return &Service{db: db} }
 func (s *Service) CreateDocument(ctx context.Context, slug, title, summary, author string) (Document, error) {
 	slug, title = strings.TrimSpace(slug), strings.TrimSpace(title)
 	if slug == "" || title == "" {
-		return Document{}, errors.New("slug and title are required")
+		return Document{}, fmt.Errorf("%w: slug and title are required", ErrInvalidDocumentInput)
 	}
 	var d Document
 	err := s.db.QueryRow(ctx, `
@@ -57,7 +61,7 @@ func (s *Service) CreateDocument(ctx context.Context, slug, title, summary, auth
 
 func (s *Service) AddVersion(ctx context.Context, documentID string, version int, content string, sourceID *string) error {
 	if version < 1 || strings.TrimSpace(content) == "" {
-		return errors.New("version and content are required")
+		return fmt.Errorf("%w: version and content are required", ErrInvalidVersionInput)
 	}
 
 	tx, err := s.db.Begin(ctx)
@@ -88,10 +92,10 @@ func (s *Service) AddVersion(ctx context.Context, documentID string, version int
 func (s *Service) Validate(ctx context.Context, documentID string, versionID, validator, decision, notes string) error {
 	validator = strings.TrimSpace(validator)
 	if validator == "" {
-		return errors.New("validator is required")
+		return fmt.Errorf("%w: validator is required", ErrInvalidValidationInput)
 	}
 	if decision != "approved" && decision != "rejected" && decision != "needs_revision" {
-		return errors.New("invalid validation decision")
+		return fmt.Errorf("%w: invalid validation decision", ErrInvalidValidationInput)
 	}
 
 	tx, err := s.db.Begin(ctx)
