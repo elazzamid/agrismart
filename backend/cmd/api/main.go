@@ -14,6 +14,8 @@ import (
 	"github.com/elazzamid/agrismart/backend/internal/platform"
 )
 
+const maxRequestBodyBytes int64 = 1 << 20 // 1 MiB
+
 func main() {
 	ctx := context.Background()
 	db, err := platform.OpenDatabase(ctx)
@@ -70,7 +72,7 @@ func main() {
 	}
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           limitRequestBody(mux, maxRequestBodyBytes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -80,6 +82,17 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+func limitRequestBody(next http.Handler, limit int64) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ContentLength > limit {
+			writeStatusJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "request body too large"})
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		next.ServeHTTP(w, r)
+	})
 }
 
 type databasePinger interface {
