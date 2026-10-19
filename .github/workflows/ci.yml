@@ -52,13 +52,40 @@ jobs:
         with:
           go-version: '1.22'
           cache-dependency-path: backend/go.sum
+      - name: Start PostgreSQL for integration tests
+        working-directory: .
+        run: docker compose up -d postgres
+      - name: Wait for PostgreSQL initialization
+        working-directory: .
+        run: |
+          for i in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q postgres)")"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            if [ "$status" = "unhealthy" ]; then
+              docker compose logs postgres
+              exit 1
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
       - name: Normalize dependencies
         run: go mod tidy
       - name: Verify dependencies
         run: go mod download
-      - name: Test
+      - name: Test (unit + PostgreSQL integration)
+        env:
+          DATABASE_URL: postgres://agrismart:agrismart_dev_password@localhost:5432/agrismart?sslmode=disable
         run: go test ./...
       - name: Vet
         run: go vet ./...
       - name: Build
         run: go build ./cmd/api
+      - name: Dump PostgreSQL logs on failure
+        if: failure()
+        working-directory: .
+        run: docker compose logs postgres
+      - name: Stop PostgreSQL
+        if: always()
+        working-directory: .
+        run: docker compose down -v
