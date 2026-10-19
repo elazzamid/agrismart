@@ -26,7 +26,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	id, ok := userID(r); if !ok { writeError(w, http.StatusUnauthorized, "unauthorized"); return }
 	var in CreateInput
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
-	if err := decodeSingleJSON(dec, &in); err != nil { writeError(w, http.StatusBadRequest, "invalid request body"); return }
+	if err := decodeSingleJSON(dec, &in); err != nil {
+		status, message := http.StatusBadRequest, "invalid request body"
+		if isRequestBodyTooLarge(err) {
+			status, message = http.StatusRequestEntityTooLarge, "request body too large"
+		}
+		writeError(w, status, message)
+		return
+	}
 	f, err := h.service.Create(r.Context(), id, in)
 	if err != nil {
 		if errors.Is(err, ErrInvalidFarmInput) { writeError(w, http.StatusBadRequest, err.Error()) } else { writeError(w, http.StatusInternalServerError, "internal server error") }
