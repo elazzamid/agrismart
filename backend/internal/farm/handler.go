@@ -28,7 +28,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
 	if err := decodeSingleJSON(dec, &in); err != nil { writeError(w, http.StatusBadRequest, "invalid request body"); return }
 	f, err := h.service.Create(r.Context(), id, in)
-	if err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	if err != nil {
+		if errors.Is(err, ErrInvalidFarmInput) { writeError(w, http.StatusBadRequest, err.Error()) } else { writeError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
 	writeJSON(w, http.StatusCreated, f)
 }
 
