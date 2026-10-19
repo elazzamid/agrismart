@@ -36,7 +36,11 @@ func (h *PlotHandler) Create(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := decodeSingleJSON(dec, &in); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		status, message := http.StatusBadRequest, "invalid request body"
+		if isRequestBodyTooLarge(err) {
+			status, message = http.StatusRequestEntityTooLarge, "request body too large"
+		}
+		writeError(w, status, message)
 		return
 	}
 	plot, err := h.service.Create(r.Context(), farmerID, r.PathValue("farmID"), in)
