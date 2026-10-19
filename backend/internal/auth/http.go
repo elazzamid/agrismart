@@ -145,7 +145,11 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.service.UserByID(r.Context(), userID)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "user not found")
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "user not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	writeJSON(w, http.StatusOK, userResponse{ID: user.ID, Email: user.Email, Role: user.Role})
