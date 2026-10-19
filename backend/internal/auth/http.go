@@ -46,6 +46,21 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
 
+func decodeErrorStatus(err error) int {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		return http.StatusRequestEntityTooLarge
+	}
+	return http.StatusBadRequest
+}
+
+func decodeErrorMessage(err error) string {
+	if decodeErrorStatus(err) == http.StatusRequestEntityTooLarge {
+		return "request body too large"
+	}
+	return "invalid request body"
+}
+
 func decodeJSON(r *http.Request, dst any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -66,7 +81,7 @@ func decodeJSON(r *http.Request, dst any) error {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, decodeErrorStatus(err), decodeErrorMessage(err))
 		return
 	}
 	user, err := h.service.Register(r.Context(), req.Email, req.Password, req.FullName, req.Phone)
@@ -87,7 +102,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeError(w, decodeErrorStatus(err), decodeErrorMessage(err))
 		return
 	}
 	user, token, err := h.service.Login(r.Context(), req.Email, req.Password)
