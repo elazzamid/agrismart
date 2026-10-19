@@ -3,12 +3,16 @@ package farm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrPlotNotFound = errors.New("plot not found")
+var (
+	ErrPlotNotFound = errors.New("plot not found")
+	ErrInvalidPlotInput = errors.New("invalid plot input")
+)
 
 type Plot struct {
 	ID     string  `json:"id"`
@@ -29,10 +33,10 @@ func NewPlotService(db DBTX) *PlotService { return &PlotService{db: db} }
 // Create accepts users.id and verifies ownership through farmer_profiles.
 func (s *PlotService) Create(ctx context.Context, userID, farmID string, in CreatePlotInput) (Plot, error) {
 	if strings.TrimSpace(in.Name) == "" {
-		return Plot{}, errors.New("plot name is required")
+		return Plot{}, fmt.Errorf("%w: plot name is required", ErrInvalidPlotInput)
 	}
 	if in.AreaM2 <= 0 {
-		return Plot{}, errors.New("plot area must be greater than zero")
+		return Plot{}, fmt.Errorf("%w: plot area must be greater than zero", ErrInvalidPlotInput)
 	}
 	var p Plot
 	err := s.db.QueryRow(ctx, `
