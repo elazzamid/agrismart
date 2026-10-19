@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Handler struct {
@@ -111,12 +113,26 @@ func (h *Handler) Authenticated(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "missing bearer token")
 			return
 		}
-		userID, role, err := h.service.tokens.Parse(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
+		userID, _, err := h.service.tokens.Parse(strings.TrimSpace(strings.TrimPrefix(header, "Bearer ")))
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
-		ctx := WithRole(WithUserID(r.Context(), userID), role)
+
+		// JWT validity alone is not enough: the account may have been disabled
+		// or its role changed since the token was issued. Load the active user
+		// on every protected request and use the database role as authoritative.
+		user, err := h.service.UserByID(r.Context(), userID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeError(w, http.StatusUnauthorized, "user not found or inactive")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+
+		ctx := WithRole(WithUserID(r.Context(), user.ID), user.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
