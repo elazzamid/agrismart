@@ -75,7 +75,7 @@ jobs:
         run: go mod download
       - name: Test (unit + PostgreSQL integration)
         env:
-          DATABASE_URL: postgres://agrismart:agrismart_dev_password@localhost:5432/agrismart?sslmode=disable
+          DATABASE_URL: postgres://agrismart:change-me-for-local-use@localhost:5432/agrismart?sslmode=disable
         run: go test ./...
       - name: Vet
         run: go vet ./...
