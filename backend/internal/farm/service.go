@@ -3,12 +3,16 @@ package farm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrNotFound = errors.New("farm not found")
+var (
+	ErrNotFound = errors.New("farm not found")
+	ErrInvalidFarmInput = errors.New("invalid farm input")
+)
 
 // Farm is the farmer-owned agricultural location.
 type Farm struct {
@@ -34,7 +38,7 @@ func NewService(db DBTX) *Service { return &Service{db: db} }
 // Create accepts the authenticated users.id and stores farmer_profiles.id as the foreign key.
 func (s *Service) Create(ctx context.Context, userID string, in CreateInput) (Farm, error) {
 	if strings.TrimSpace(in.Name) == "" {
-		return Farm{}, errors.New("farm name is required")
+		return Farm{}, fmt.Errorf("%w: farm name is required", ErrInvalidFarmInput)
 	}
 	var f Farm
 	err := s.db.QueryRow(ctx, `
