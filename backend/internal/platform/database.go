@@ -13,7 +13,7 @@ func DatabaseURL() string {
 	if value := os.Getenv("DATABASE_URL"); value != "" {
 		return value
 	}
-	return "postgres://agrismart:agrismart@localhost:5432/agrismart?sslmode=disable"
+	return "postgres://agrismart:change-me-for-local-use@localhost:5432/agrismart?sslmode=disable"
 }
 
 func OpenDatabase(ctx context.Context) (*pgxpool.Pool, error) {
