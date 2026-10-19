@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrCropCycleNotFound = errors.New("crop cycle not found")
+var (
+	ErrCropCycleNotFound = errors.New("crop cycle not found")
+	ErrInvalidCropCycleInput = errors.New("invalid crop cycle input")
+)
 
 type CropCycle struct {
 	ID string `json:"id"`
@@ -29,8 +33,12 @@ type CropCycleService struct { db queryer }
 func NewCropCycleService(db queryer) *CropCycleService { return &CropCycleService{db: db} }
 
 func (s *CropCycleService) Create(ctx context.Context, farmerID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
-	if strings.TrimSpace(in.CropID) == "" { return CropCycle{}, errors.New("crop id is required") }
-	if strings.TrimSpace(in.PlantingDate) == "" { return CropCycle{}, errors.New("planting date is required") }
+	if strings.TrimSpace(in.CropID) == "" {
+		return CropCycle{}, ErrInvalidCropCycleInput
+	}
+	if _, err := time.Parse("2006-01-02", in.PlantingDate); err != nil {
+		return CropCycle{}, ErrInvalidCropCycleInput
+	}
 	var c CropCycle
 	err := s.db.QueryRow(ctx, `
 		INSERT INTO crop_cycles (plot_id, crop_id, variety_id, planting_date)

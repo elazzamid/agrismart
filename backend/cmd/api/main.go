@@ -29,7 +29,8 @@ func main() {
 	farmService := farm.NewService(db)
 	plotService := farm.NewPlotService(db)
 	catalogService := farm.NewCatalogService(db)
-	farmHandler := farm.NewHandler(farmService, plotService, catalogService)
+	cycleService := farm.NewCropCycleService(db)
+	farmHandler := farm.NewHandler(farmService, plotService, catalogService, cycleService)
 	authenticated := authHandler.Authenticated
 
 	mux := http.NewServeMux()
@@ -42,6 +43,8 @@ func main() {
 	mux.Handle("GET /api/v1/farms/{id}", authenticated(http.HandlerFunc(farmHandler.Get)))
 	mux.Handle("GET /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.ListPlots)))
 	mux.Handle("POST /api/v1/farms/{id}/plots", authenticated(http.HandlerFunc(farmHandler.CreatePlot)))
+	mux.Handle("GET /api/v1/plots/{id}/crop-cycles", authenticated(http.HandlerFunc(farmHandler.ListCropCycles)))
+	mux.Handle("POST /api/v1/plots/{id}/crop-cycles", authenticated(http.HandlerFunc(farmHandler.CreateCropCycle)))
 	mux.Handle("GET /api/v1/crops", authenticated(http.HandlerFunc(farmHandler.ListCrops)))
 	mux.Handle("GET /api/v1/crops/{id}", authenticated(http.HandlerFunc(farmHandler.GetCrop)))
 	mux.Handle("GET /api/v1/crops/{id}/varieties", authenticated(http.HandlerFunc(farmHandler.ListVarieties)))
