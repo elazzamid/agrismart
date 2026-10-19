@@ -3,12 +3,16 @@ package farm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrCropCycleNotFound = errors.New("crop cycle not found")
+var (
+	ErrCropCycleNotFound = errors.New("crop cycle not found")
+	ErrInvalidCropCycleInput = errors.New("invalid crop cycle input")
+)
 
 type CropCycle struct {
 	ID           string  `json:"id"`
@@ -31,10 +35,10 @@ func NewCropCycleService(db DBTX) *CropCycleService { return &CropCycleService{d
 
 func (s *CropCycleService) Create(ctx context.Context, userID, farmID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
 	if strings.TrimSpace(in.CropID) == "" {
-		return CropCycle{}, errors.New("crop id is required")
+		return CropCycle{}, fmt.Errorf("%w: crop id is required", ErrInvalidCropCycleInput)
 	}
 	if strings.TrimSpace(in.PlantingDate) == "" {
-		return CropCycle{}, errors.New("planting date is required")
+		return CropCycle{}, fmt.Errorf("%w: planting date is required", ErrInvalidCropCycleInput)
 	}
 	varietyID := any(nil)
 	if in.VarietyID != nil {
