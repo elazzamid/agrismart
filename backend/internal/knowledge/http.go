@@ -50,7 +50,10 @@ func (h *HTTPHandler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
 	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	d, err := h.service.CreateDocument(r.Context(), in.Slug, in.Title, in.Summary, in.AuthorName)
-	if err != nil { jsonError(w, http.StatusBadRequest, err.Error()); return }
+	if err != nil {
+		if errors.Is(err, ErrInvalidDocumentInput) { jsonError(w, http.StatusBadRequest, err.Error()) } else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
+	}
 	jsonResponse(w, http.StatusCreated, d)
 }
 
@@ -61,8 +64,11 @@ func (h *HTTPHandler) AddVersion(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
 	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if err := h.service.AddVersion(r.Context(), id, in.Version, in.Content, in.SourceID); err != nil {
-		status := http.StatusBadRequest; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
-		jsonError(w, status, err.Error()); return
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidVersionInput) { jsonError(w, http.StatusBadRequest, err.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
 	}
 	jsonResponse(w, http.StatusCreated, map[string]string{"status": "version_created"})
 }
@@ -74,8 +80,11 @@ func (h *HTTPHandler) Validate(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body); dec.DisallowUnknownFields()
 	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if err := h.service.Validate(r.Context(), id, in.VersionID, in.ValidatorName, in.Decision, in.Notes); err != nil {
-		status := http.StatusBadRequest; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
-		jsonError(w, status, err.Error()); return
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidValidationInput) { jsonError(w, http.StatusBadRequest, err.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]string{"status": "validated"})
 }
@@ -88,8 +97,10 @@ func (h *HTTPHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	if err := decodeSingleJSON(dec, &in); err != nil { jsonError(w, http.StatusBadRequest, "invalid request body"); return }
 	if strings.TrimSpace(in.VersionID) == "" { jsonError(w, http.StatusBadRequest, "version_id is required"); return }
 	if err := h.service.Publish(r.Context(), id, in.VersionID); err != nil {
-		status := http.StatusConflict; if errors.Is(err, ErrDocumentNotFound) { status = http.StatusNotFound }
-		jsonError(w, status, err.Error()); return
+		if errors.Is(err, ErrDocumentNotFound) { jsonError(w, http.StatusNotFound, ErrDocumentNotFound.Error())
+		} else if errors.Is(err, ErrInvalidTransition) { jsonError(w, http.StatusConflict, ErrInvalidTransition.Error())
+		} else { jsonError(w, http.StatusInternalServerError, "internal server error") }
+		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]string{"status": "published"})
 }
