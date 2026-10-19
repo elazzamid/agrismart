@@ -45,7 +45,7 @@ func (h *PlotHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, ErrInvalidPlotInput) { writeError(w, http.StatusBadRequest, err.Error()) } else { writeError(w, http.StatusInternalServerError, "internal server error") }
 		return
 	}
 	writeJSON(w, http.StatusCreated, plot)
