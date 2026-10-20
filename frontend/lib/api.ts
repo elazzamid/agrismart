@@ -84,3 +84,41 @@ export async function createFarm(input: { name: string; location_name: string })
     body: JSON.stringify(input),
   });
 }
+
+
+export type Plot = { id: string; farm_id: string; name: string; area_m2: number };
+export type Crop = { id: string; code: string; name: string; description?: string; is_active: boolean };
+export type CropCycle = {
+  id: string;
+  plot_id: string;
+  crop_id: string;
+  variety_id?: string | null;
+  planting_date: string;
+  status: string;
+};
+
+export async function listPlots(farmId: string): Promise<Plot[]> {
+  return request<Plot[]>(`/api/v1/farms/${encodeURIComponent(farmId)}/plots`);
+}
+
+export async function createPlot(farmId: string, input: { name: string; area_m2: number }): Promise<Plot> {
+  return request<Plot>(`/api/v1/farms/${encodeURIComponent(farmId)}/plots`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listCrops(): Promise<Crop[]> {
+  return request<Crop[]>("/api/v1/crops");
+}
+
+export async function listCropCycles(plotId: string): Promise<CropCycle[]> {
+  return request<CropCycle[]>(`/api/v1/plots/${encodeURIComponent(plotId)}/crop-cycles`);
+}
+
+export async function createCropCycle(plotId: string, input: { crop_id: string; planting_date: string }): Promise<CropCycle> {
+  return request<CropCycle>(`/api/v1/plots/${encodeURIComponent(plotId)}/crop-cycles`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
