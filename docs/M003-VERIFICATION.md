@@ -7,6 +7,7 @@ This branch implements three farm-operation slices:
 - **M003.1 — Farm Activities:** record and list activities for a crop cycle.
 - **M003.2 — Farm Inputs:** record and list inputs actually applied to a crop cycle. This is historical recordkeeping, not an agronomic recommendation or dose calculator.
 - **M003.3 — Farm Expenses:** record and list crop-cycle operating costs. This is expense history, not financial advice.
+- **M003.4 — Farm Harvests:** record and list actual harvest quantity, unit, date, optional quality grade, and notes. This is historical recordkeeping, not a yield prediction.
 
 ## API
 
@@ -45,6 +46,25 @@ Example request:
 
 Allowed expense types: `seed`, `fertilizer`, `pesticide`, `labor`, `irrigation`, `equipment`, `transport`, `other`. Description is 1–160 characters; amount must be between Rp0.01 and Rp999,999,999,999.99; date must be a valid `YYYY-MM-DD` date; notes are limited to 2,000 characters.
 
+### Farm harvests
+
+- `GET /api/v1/crop-cycles/{id}/harvests`
+- `POST /api/v1/crop-cycles/{id}/harvests`
+
+Example request:
+
+```json
+{
+  "quantity": 125.5,
+  "unit": "kg",
+  "harvest_date": "2026-10-19",
+  "quality_grade": "Grade A",
+  "notes": "First pick"
+}
+```
+
+Quantity must be finite and between 0.001 and 99,999,999,999.999; unit is 1–20 characters; date must be a valid `YYYY-MM-DD` date; quality grade is optional and limited to 40 characters; notes are limited to 2,000 characters.
+
 ## Validation and access rules
 
 - Crop-cycle IDs must be UUIDs.
@@ -54,7 +74,7 @@ Allowed expense types: `seed`, `fertilizer`, `pesticide`, `labor`, `irrigation`,
 
 ## Database migration order
 
-M002 knowledge migrations use `000006` through `000011`. Farm operations use `000012_farm_activities.sql`, `000013_farm_inputs.sql`, and `000014_farm_expenses.sql`.
+M002 knowledge migrations use `000006` through `000011`. Farm operations use `000012_farm_activities.sql`, `000013_farm_inputs.sql`, `000014_farm_expenses.sql`, and `000015_farm_harvests.sql`.
 
 ## Required verification
 

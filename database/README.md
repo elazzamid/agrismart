@@ -13,6 +13,7 @@ Migrations are plain SQL and must apply in lexical order on a clean database. Mi
 | `000012` | M003.1 farm activity records |
 | `000013` | M003.2 farm input records |
 | `000014` | M003.3 farm expense records |
+| `000015` | M003.4 farm harvest records |
 
 The M003 migration numbers intentionally follow M002. Do not reuse a migration number across features or renumber a migration after it has been merged.
 

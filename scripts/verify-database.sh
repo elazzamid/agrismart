@@ -9,10 +9,10 @@ printf '%s\n' "Checking PostgreSQL container: $DB_CONTAINER"
 docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME"
 
 printf '%s\n' "Checking required tables..."
-TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name IN ('users','farmer_profiles','farms','farm_plots','crops','crop_varieties','crop_growth_stages','crop_cycles','farm_activities','farm_inputs','farm_expenses');")"
+TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name IN ('users','farmer_profiles','farms','farm_plots','crops','crop_varieties','crop_growth_stages','crop_cycles','farm_activities','farm_inputs','farm_expenses','farm_harvests');")"
 
-[ "$TABLE_COUNT" = "11" ] || {
-  echo "Expected 11 required tables, found $TABLE_COUNT" >&2
+[ "$TABLE_COUNT" = "12" ] || {
+  echo "Expected 12 required tables, found $TABLE_COUNT" >&2
   exit 1
 }
 
@@ -82,6 +82,21 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_farm_expenses_cycle_date') THEN
     RAISE EXCEPTION 'Missing required index: idx_farm_expenses_cycle_date';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'farm_harvests_quantity_check') THEN
+    RAISE EXCEPTION 'Missing required constraint: farm_harvests_quantity_check';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'farm_harvests_unit_check') THEN
+    RAISE EXCEPTION 'Missing required constraint: farm_harvests_unit_check';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'farm_harvests_quality_grade_check') THEN
+    RAISE EXCEPTION 'Missing required constraint: farm_harvests_quality_grade_check';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'farm_harvests_notes_check') THEN
+    RAISE EXCEPTION 'Missing required constraint: farm_harvests_notes_check';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_farm_harvests_cycle_date') THEN
+    RAISE EXCEPTION 'Missing required index: idx_farm_harvests_cycle_date';
   END IF;
 END
 $verify$;
