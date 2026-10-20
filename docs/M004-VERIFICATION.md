@@ -13,6 +13,7 @@
 - Plot workspace lists active crops and lists/creates crop cycles with planting dates.
 - Crop-cycle journal lists and creates activities, applied inputs, expenses, and harvest records through authenticated APIs.
 - Journal forms validate required fields and reflect backend validation; input records remain historical records, not dose recommendations.
+- Crop-cycle journal shows activity/input/harvest counts and total recorded expenses, with Indonesian labels for common activity and expense categories.
 - Journal panels load only when opened, avoiding unnecessary requests for every crop cycle.
 - Explicit loading, empty, success, and error states.
 - Responsive desktop and mobile layouts; form labels, keyboard focus styles, and reduced-motion support.
