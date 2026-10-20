@@ -80,7 +80,7 @@ func TestFarmActivityHandlerCreateReturnsCreated(t *testing.T) {
 	userID := "00000000-0000-0000-0000-000000000001"
 	cycleID := "00000000-0000-0000-0000-000000000002"
 	activityID := "00000000-0000-0000-0000-000000000003"
-	pool.ExpectQuery(`INSERT INTO farm_activities.*WHERE cc.id = \\$1 AND fp.user_id = \\$2 RETURNING`).
+	pool.ExpectQuery(`INSERT INTO farm_activities.*WHERE cc.id = [$]1 AND fp.user_id = [$]2 RETURNING`).
 		WithArgs(cycleID, userID, "watering", "2026-10-19", "Morning").
 		WillReturnRows(pgxmock.NewRows([]string{"id", "crop_cycle_id", "activity_type", "activity_date", "notes"}).
 			AddRow(activityID, cycleID, "watering", "2026-10-19", "Morning"))
@@ -108,7 +108,7 @@ func TestFarmActivityHandlerListReturnsNotFoundForUnownedCycle(t *testing.T) {
 	defer pool.Close()
 
 	cycleID := "00000000-0000-0000-0000-000000000002"
-	pool.ExpectQuery(`SELECT EXISTS.*WHERE cc.id = \\$1 AND fp.user_id = \\$2`).
+	pool.ExpectQuery(`SELECT EXISTS.*WHERE cc.id = [$]1 AND fp.user_id = [$]2`).
 		WithArgs(cycleID, "user-1").
 		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
 
