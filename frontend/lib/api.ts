@@ -122,3 +122,22 @@ export async function createCropCycle(plotId: string, input: { crop_id: string; 
     body: JSON.stringify(input),
   });
 }
+
+
+export type FarmActivity = { id: string; crop_cycle_id: string; activity_type: string; activity_date: string; notes?: string };
+export type FarmInput = { id: string; crop_cycle_id: string; input_type: string; product_name: string; quantity: number; unit: string; applied_date: string; notes?: string };
+export type FarmExpense = { id: string; crop_cycle_id: string; expense_type: string; description: string; amount: number; expense_date: string; notes?: string };
+export type FarmHarvest = { id: string; crop_cycle_id: string; quantity: number; unit: string; harvest_date: string; quality_grade?: string; notes?: string };
+
+export const listActivities = (id: string) => request<FarmActivity[]>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/activities`);
+export const createActivity = (id: string, input: Omit<FarmActivity, "id" | "crop_cycle_id">) =>
+  request<FarmActivity>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/activities`, { method: "POST", body: JSON.stringify(input) });
+export const listInputs = (id: string) => request<FarmInput[]>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/inputs`);
+export const createInput = (id: string, input: Omit<FarmInput, "id" | "crop_cycle_id">) =>
+  request<FarmInput>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/inputs`, { method: "POST", body: JSON.stringify(input) });
+export const listExpenses = (id: string) => request<FarmExpense[]>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/expenses`);
+export const createExpense = (id: string, input: Omit<FarmExpense, "id" | "crop_cycle_id">) =>
+  request<FarmExpense>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/expenses`, { method: "POST", body: JSON.stringify(input) });
+export const listHarvests = (id: string) => request<FarmHarvest[]>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/harvests`);
+export const createHarvest = (id: string, input: Omit<FarmHarvest, "id" | "crop_cycle_id">) =>
+  request<FarmHarvest>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/harvests`, { method: "POST", body: JSON.stringify(input) });
