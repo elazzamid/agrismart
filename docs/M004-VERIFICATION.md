@@ -1,6 +1,6 @@
 # M004 — Farmer Experience Verification
 
-## Slice M004.1: Mobile-first account and farm dashboard
+## Slices M004.1–M004.3: Farmer dashboard and crop journal
 
 ### Implemented
 
@@ -11,6 +11,9 @@
 - Farm creation uses `POST /api/v1/farms`; optional location is supported.
 - Farm workspace lists and creates plots using the farmer-scoped farm API.
 - Plot workspace lists active crops and lists/creates crop cycles with planting dates.
+- Crop-cycle journal lists and creates activities, applied inputs, expenses, and harvest records through authenticated APIs.
+- Journal forms validate required fields and reflect backend validation; input records remain historical records, not dose recommendations.
+- Journal panels load only when opened, avoiding unnecessary requests for every crop cycle.
 - Explicit loading, empty, success, and error states.
 - Responsive desktop and mobile layouts; form labels, keyboard focus styles, and reduced-motion support.
 - Same-origin Next.js rewrite proxies `/api/v1/*` to the configured Go API origin.
@@ -38,10 +41,12 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 9. Confirm API failures show a recoverable error rather than fabricated sample data.
 10. Check narrow mobile viewport, keyboard navigation, and form labels.
 11. Confirm sign-out clears the tab-scoped token.
+12. Record one activity, input, expense, and harvest; verify each appears after reload.
+13. Check that the default date matches the local calendar date and that input quantity units are explicitly entered.
 
 ### Scope and limitations
 
-- Plot management and crop-cycle creation are included. Activity/input/expense/harvest forms and browser end-to-end automation remain for subsequent slices.
+- Activity/input/expense/harvest forms are included. Browser end-to-end automation and manual browser verification remain outstanding.
 - The backend issues bearer tokens; `sessionStorage` is tab-scoped but JavaScript-accessible and is not equivalent to an HttpOnly cookie.
 - No production deployment, VPS change, PR merge, or database mutation was performed.
 - The feature branch is based on `feature/m003-farm-operations` because the dashboard depends on the farm API; M003 and M004 are not merged into `main`.

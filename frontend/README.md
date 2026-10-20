@@ -1,6 +1,6 @@
 # AgriSmart Farmer Web
 
-Mobile-first Next.js interface for the AgriSmart API.
+Mobile-first Next.js interface for the AgriSmart Go API.
 
 ## Requirements
 
@@ -24,16 +24,16 @@ Set `AGRISMART_API_ORIGIN` to override the API origin, for example:
 AGRISMART_API_ORIGIN=http://127.0.0.1:8080 npm run dev
 ```
 
-## First M004 slice
+## Current M004 slices
 
-- Login and account registration against the existing API.
-- Session-scoped bearer token storage.
-- Farmer dashboard and farmer-owned farm list.
-- Create farm with optional location.
-- Loading, empty, success, and error states.
+- Login and account registration with tab-scoped bearer-token storage.
+- Farmer dashboard, list/create farm, and farm-scoped plot management.
+- List/create crop cycles using the existing active-crop catalog.
+- Record and review activities, applied inputs, expenses, and harvests for each crop cycle.
+- Loading, empty, success, and recoverable error states.
 - Responsive desktop/mobile layouts and accessible form labels.
 
-The interface intentionally does not fabricate farm, crop, activity, input, expense, or harvest data. Plot, crop-cycle, and operation-record workflows are subsequent M004 slices.
+The interface does not fabricate farm or crop data. Input records document what was actually used; the journal does not calculate or recommend agricultural doses. Browser end-to-end automation and manual browser verification remain outstanding.
 
 ## Security note
 

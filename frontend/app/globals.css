@@ -212,3 +212,21 @@ button:disabled{opacity:.62;cursor:wait}
  .record-tab { padding:7px 8px; }
  .record-item-top { flex-direction:column; gap:4px; }
 }
+
+/* Keep cycle journals collapsed until a farmer opens one. */
+.cycle-record-toggle {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .cycle-row {
+    flex-wrap: wrap;
+  }
+
+  .cycle-record-toggle {
+    margin-left: 40px;
+  }
+}

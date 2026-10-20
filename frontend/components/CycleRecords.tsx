@@ -9,7 +9,12 @@ import {
 
 type Kind = "activity" | "input" | "expense" | "harvest";
 type RecordRow = FarmActivity | FarmInput | FarmExpense | FarmHarvest;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+};
 const labels: Record<Kind, string> = { activity: "Kegiatan", input: "Sarana produksi", expense: "Biaya", harvest: "Panen" };
 
 function formatDate(value: string) {
@@ -59,7 +64,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
     setError("");
     setNotice("");
     setType(next === "activity" ? "watering" : next === "input" ? "fertilizer" : next === "expense" ? "labor" : "");
-    setDate(today()); setName(""); setQuantity(""); setUnit("kg"); setAmount(""); setGrade(""); setNotes("");
+    setDate(today()); setName(""); setQuantity(""); setUnit(next === "harvest" ? "kg" : ""); setAmount(""); setGrade(""); setNotes("");
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
