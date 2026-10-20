@@ -2,24 +2,23 @@
 
 AgriSmart uses PostgreSQL as the transactional system of record.
 
-## Migrations
+## Migration order
 
-SQL migrations are ordered and immutable after merge:
+Migrations are plain SQL and must apply in lexical order on a clean database. Migration files are immutable after merge.
 
-```text
-migrations/
-├── 000001_extensions.sql
-├── 000002_identity.sql
-├── 000003_farms.sql
-└── 000004_crops.sql
-```
+| Migration range | Scope |
+| --- | --- |
+| `000001`–`000005` | Core schema, identity, farms, crops, and crop-cycle integrity |
+| `000006`–`000011` | M002 agricultural knowledge foundation |
+| `000012` | M003.1 farm activity records |
+| `000013` | M003.2 farm input records |
 
-The migrations are intentionally plain SQL so they remain portable and easy to audit.
+The M003 migration numbers intentionally follow M002. Do not reuse a migration number across features or renumber a migration after it has been merged.
 
 ## Clean database verification
 
-A clean PostgreSQL instance must accept the migrations in lexical order without manual schema changes.
+A clean PostgreSQL instance must accept all migrations in lexical order without manual schema changes. CI starts PostgreSQL, applies the SQL files, and runs `scripts/verify-database.sh` to check required tables, constraints, and indexes.
 
 ## Seed data
 
-Reference/seed data for the MVP crops will be added separately after the schema is verified. Do not mix agricultural recommendations into the core schema migration files.
+Reference and knowledge seed data is kept separate from schema migrations when practical. Do not mix agricultural recommendations into core schema migration files.
