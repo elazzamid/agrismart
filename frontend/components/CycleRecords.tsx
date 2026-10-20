@@ -32,7 +32,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState("");
   const [type, setType] = useState("watering");
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -57,6 +57,10 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   }, [cycleId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    setDate(today());
+  }, []);
 
   function changeKind(next: Kind) {
     setKind(next);
