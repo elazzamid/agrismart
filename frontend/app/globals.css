@@ -156,3 +156,31 @@ button:disabled{opacity:.62;cursor:wait}
 @media(max-width:1100px){.sidebar{width:215px}.dashboard-main{margin-left:215px}.farm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-copy{max-width:60%}.hero-art{left:50%}.online-pill{display:none}}
 @media(max-width:760px){.auth-layout{grid-template-columns:1fr}.auth-story{display:none}.auth-panel{min-height:100svh;padding:28px 22px;align-items:center}.auth-card{max-width:400px}.mobile-brand{display:block}.auth-card h2{font-size:27px}.sidebar{display:none}.dashboard-main{margin-left:0;padding-bottom:75px}.topbar{height:58px;padding:0 20px}.topbar-right{gap:0}.dashboard-content{padding:25px 18px 24px}.welcome-row{align-items:start;margin-bottom:20px}.welcome-row h1{font-size:25px;line-height:1.2}.welcome-row p{font-size:11px;max-width:260px;line-height:1.6}.date-chip{display:none}.hero-card{min-height:280px}.hero-copy{padding:23px 21px;max-width:78%}.hero-copy h2{font-size:29px}.hero-copy p{font-size:10px;max-width:260px}.hero-art{inset:0 0 0 48%;opacity:.55}.sun{width:65px;height:65px;right:16%;top:18px}.plant-a{left:15%}.plant-b{left:46%}.plant-c{left:75%}.section-heading{margin-top:26px}.farm-grid{grid-template-columns:1fr;gap:12px}.farm-card{display:grid;grid-template-columns:112px 1fr;min-height:118px}.farm-card-art{height:100%;min-height:118px}.farm-card-body{padding:12px 11px}.farm-card-title h3{font-size:12px}.farm-location{margin:8px 0 14px;line-height:1.5}.farm-card-foot{padding-top:8px}.farm-id{display:none}.form-grid{grid-template-columns:1fr}.farm-form{padding:16px}.next-step{align-items:start;padding:13px}.coming-soon{display:none}.dashboard-footer{flex-direction:column;gap:7px}.mobile-nav{position:fixed;display:flex;align-items:stretch;justify-content:space-around;inset:auto 0 0;z-index:10;background:rgba(255,255,255,.96);border-top:1px solid var(--line);padding:8px 10px max(8px,env(safe-area-inset-bottom));backdrop-filter:blur(12px)}.mobile-nav>*{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:70px;border:0;background:none;color:#8a9588;font-size:19px}.mobile-nav small{font-size:9px;font-weight:600}.mobile-nav .mobile-nav-active{color:var(--green)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+.farm-card[role="button"]{cursor:pointer}
+.back-link{border:0;background:none;padding:0;color:var(--green);font-size:11px;font-weight:700;margin:0 0 20px}
+.workspace-welcome{margin-bottom:19px}
+.workspace-banner{display:flex;align-items:center;gap:13px;padding:16px 18px;background:#eaf1e1;border:1px solid #e0e9d7;border-radius:11px;margin-bottom:23px}
+.workspace-banner-icon{display:grid;place-items:center;flex:0 0 auto;width:39px;height:39px;border-radius:11px;background:#dce9d0;color:var(--green);font-size:22px}
+.workspace-banner strong{font-family:Manrope,sans-serif;font-size:12px}
+.workspace-banner p{font-size:10px;line-height:1.6;color:#71806d;margin:5px 0 0}
+.plot-list{display:grid;gap:13px}
+.plot-card{background:#fff;border:1px solid #e5eae1;border-radius:12px;padding:17px}
+.plot-card-head{display:flex;align-items:center;gap:12px}
+.plot-index{display:grid;place-items:center;flex:0 0 auto;width:38px;height:38px;border-radius:10px;background:#edf3e6;color:#53764a;font-family:Manrope,sans-serif;font-size:13px;font-weight:800}
+.plot-main{flex:1;min-width:0}
+.plot-main h3{font-family:Manrope,sans-serif;font-size:14px;margin:0 0 5px}
+.plot-main p{font-size:10px;color:#8b9589;margin:0}
+.small-button{min-height:34px;font-size:10px}
+.cycle-form{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;background:#f7f9f4;border:1px solid #edf0e8;padding:14px;border-radius:9px;margin-top:15px}
+.field select{width:100%;min-height:44px;border:1px solid #dfe5dc;background:#fff;border-radius:8px;padding:0 12px;color:var(--ink);font-weight:400}
+.inline-hint{grid-column:1/-1;color:#8c6a3a;font-size:10px;margin:0}
+.cycle-list{border-top:1px solid #edf0eb;margin-top:15px}
+.no-cycle{color:#929b90;font-size:10px;margin:13px 0 0}
+.cycle-row{display:flex;align-items:center;gap:10px;padding:13px 0 0}
+.cycle-plant-icon{display:grid;place-items:center;width:30px;height:30px;flex:0 0 auto;border-radius:9px;background:#f0f5e9;color:#5c8852}
+.cycle-copy{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.cycle-copy strong{font-size:11px}
+.cycle-copy span{font-size:10px;color:#879285}
+.cycle-status{font-size:9px;color:#547e49;background:#edf4e7;padding:5px 8px;border-radius:5px;text-transform:capitalize}
+@media(max-width:760px){.workspace-welcome{align-items:start}.workspace-welcome .button{font-size:10px;min-height:36px;padding:0 10px}.workspace-banner{align-items:start;padding:13px}.plot-card{padding:13px}.plot-card-head{gap:9px}.plot-main h3{font-size:12px}.plot-main p{font-size:9px}.small-button{padding:0 8px;min-height:32px;white-space:nowrap}.cycle-form{grid-template-columns:1fr;gap:12px}.cycle-form .button{width:100%}.cycle-status{font-size:8px}.cycle-copy span{line-height:1.4}}
