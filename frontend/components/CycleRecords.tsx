@@ -16,6 +16,10 @@ const today = () => {
   return `${now.getFullYear()}-${month}-${day}`;
 };
 const labels: Record<Kind, string> = { activity: "Kegiatan", input: "Sarana produksi", expense: "Biaya", harvest: "Panen" };
+const activityNames: Record<string, string> = { watering: "Penyiraman", weeding: "Penyiangan", pruning: "Pemangkasan", planting: "Penanaman", inspection: "Pemeriksaan", other: "Lainnya" };
+const inputNames: Record<string, string> = { fertilizer: "Pupuk", pesticide: "Pestisida", seed: "Benih", other: "Lainnya" };
+const expenseNames: Record<string, string> = { seed: "Benih", fertilizer: "Pupuk", pesticide: "Pestisida", labor: "Tenaga kerja", irrigation: "Irigasi", equipment: "Peralatan", transport: "Transportasi", other: "Lainnya" };
+
 
 function formatDate(value: string) {
   return new Date(value + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
@@ -95,8 +99,16 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   }
 
   const items = rows[kind];
+  const totalExpenses = rows.expense.reduce((sum, item) => sum + (item as FarmExpense).amount, 0);
+  const summary = [
+    { label: "Kegiatan", value: String(rows.activity.length) },
+    { label: "Sarana dipakai", value: String(rows.input.length) },
+    { label: "Catatan panen", value: String(rows.harvest.length) },
+    { label: "Total biaya", value: money(totalExpenses) },
+  ];
   return <section className="records-panel">
     <div className="records-head"><div><span className="eyebrow muted">JURNAL BUDIDAYA</span><h4>Catatan siklus</h4></div><button type="button" className="button outline small-button" onClick={() => setShowForm(v => !v)}>{showForm ? "Tutup" : "+ Catat"}</button></div>
+    <div className="journal-summary">{summary.map(item => <div className="journal-metric" key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}</div>
     <div className="record-tabs" role="tablist" aria-label="Jenis catatan">
       {(Object.keys(labels) as Kind[]).map(key => <button type="button" role="tab" aria-selected={kind === key} className={kind === key ? "record-tab active" : "record-tab"} key={key} onClick={() => changeKind(key)}>{labels[key]} <span>{rows[key].length}</span></button>)}
     </div>
@@ -114,8 +126,8 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
       {kind === "input" && <p className="inline-hint">Catat penggunaan aktual; formulir ini tidak menghitung atau merekomendasikan dosis.</p>}
     </form>}
     {loading ? <p className="no-cycle">Memuat catatan…</p> : items.length === 0 ? <p className="no-cycle">Belum ada catatan {labels[kind].toLowerCase()} untuk siklus ini.</p> : <div className="record-list">{items.map(item => <article className="record-item" key={item.id}>
-      <div className="record-item-top"><strong>{kind === "activity" ? (item as FarmActivity).activity_type : kind === "input" ? (item as FarmInput).product_name : kind === "expense" ? (item as FarmExpense).description : "Hasil panen"}</strong><time>{formatDate(kind === "activity" ? (item as FarmActivity).activity_date : kind === "input" ? (item as FarmInput).applied_date : kind === "expense" ? (item as FarmExpense).expense_date : (item as FarmHarvest).harvest_date)}</time></div>
-      <p>{kind === "input" ? `${(item as FarmInput).quantity} ${(item as FarmInput).unit} · ${(item as FarmInput).input_type}` : kind === "expense" ? money((item as FarmExpense).amount) + " · " + (item as FarmExpense).expense_type : kind === "harvest" ? `${(item as FarmHarvest).quantity} ${(item as FarmHarvest).unit}${(item as FarmHarvest).quality_grade ? " · " + (item as FarmHarvest).quality_grade : ""}` : (item as FarmActivity).notes || "Kegiatan tercatat"}</p>
+      <div className="record-item-top"><strong>{kind === "activity" ? activityNames[(item as FarmActivity).activity_type] || (item as FarmActivity).activity_type : kind === "input" ? (item as FarmInput).product_name : kind === "expense" ? (item as FarmExpense).description : "Hasil panen"}</strong><time>{formatDate(kind === "activity" ? (item as FarmActivity).activity_date : kind === "input" ? (item as FarmInput).applied_date : kind === "expense" ? (item as FarmExpense).expense_date : (item as FarmHarvest).harvest_date)}</time></div>
+      <p>{kind === "input" ? `${(item as FarmInput).quantity} ${(item as FarmInput).unit} · ${(item as FarmInput).input_type}` : kind === "expense" ? money((item as FarmExpense).amount) + " · " + (expenseNames[(item as FarmExpense).expense_type] || (item as FarmExpense).expense_type) : kind === "harvest" ? `${(item as FarmHarvest).quantity} ${(item as FarmHarvest).unit}${(item as FarmHarvest).quality_grade ? " · " + (item as FarmHarvest).quality_grade : ""}` : (item as FarmActivity).notes || "Kegiatan tercatat"}</p>
       {kind !== "activity" && item.notes && <p className="record-note">{item.notes}</p>}
     </article>)}</div>}
   </section>;
