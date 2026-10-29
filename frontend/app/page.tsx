@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import CycleRecords from "@/components/CycleRecords";
 import {
   clearToken,
@@ -117,6 +117,18 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
   const [cycles, setCycles] = useState<Record<string, CropCycle[]>>({});
+  const cycleRequestIds = useRef<Record<string, number>>({});
+  const plotIdsRef = useRef<string[]>([]);
+  const invalidateCycleRequests = useCallback(() => {
+    for (const plotId of Object.keys(cycleRequestIds.current)) {
+      cycleRequestIds.current[plotId] = (cycleRequestIds.current[plotId] ?? 0) + 1;
+    }
+  }, []);
+  const [cycleLoadErrors, setCycleLoadErrors] = useState<string[]>([]);
+  const [cycleLoadPending, setCycleLoadPending] = useState<string[]>([]);
+  const [cycleLoadedIds, setCycleLoadedIds] = useState<string[]>([]);
+  const [cropsLoadFailed, setCropsLoadFailed] = useState(false);
+  const [plotsLoaded, setPlotsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPlotForm, setShowPlotForm] = useState(false);
@@ -130,23 +142,83 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
   const [savingCycle, setSavingCycle] = useState(false);
   const [notice, setNotice] = useState("");
 
+  const loadCycles = useCallback(async (plotId: string) => {
+    const requestId = (cycleRequestIds.current[plotId] ?? 0) + 1;
+    cycleRequestIds.current[plotId] = requestId;
+    setCycleLoadPending(current => current.includes(plotId) ? current : [...current, plotId]);
+    setCycleLoadErrors(current => current.filter(id => id !== plotId));
+    try {
+      const nextCycles = await listCropCycles(plotId);
+      if (cycleRequestIds.current[plotId] !== requestId) return;
+      setCycles(previous => ({ ...previous, [plotId]: nextCycles }));
+      setCycleLoadedIds(current => current.includes(plotId) ? current : [...current, plotId]);
+    } catch {
+      if (cycleRequestIds.current[plotId] !== requestId) return;
+      setCycleLoadErrors(current => current.includes(plotId) ? current : [...current, plotId]);
+    } finally {
+      if (cycleRequestIds.current[plotId] === requestId) {
+        setCycleLoadPending(current => current.filter(id => id !== plotId));
+      }
+    }
+  }, []);
+
+  const refreshRequestId = useRef(0);
   const refresh = useCallback(async () => {
+    const requestId = ++refreshRequestId.current;
+    invalidateCycleRequests();
+    const cycleRequestIdsAtStart = { ...cycleRequestIds.current };
+    setCycleLoadPending(plotIdsRef.current);
+    setCycleLoadErrors([]);
     setLoading(true);
     setError("");
     try {
-      const [nextPlots, nextCrops] = await Promise.all([listPlots(farm.id), listCrops()]);
-      const pairs = await Promise.all(nextPlots.map(async plot => [plot.id, await listCropCycles(plot.id)] as const));
-      setPlots(nextPlots);
-      setCrops(nextCrops);
-      setCycles(Object.fromEntries(pairs));
+      const plotsRequest = listPlots(farm.id).then(nextPlots => {
+        if (refreshRequestId.current !== requestId) return;
+        plotIdsRef.current = nextPlots.map(plot => plot.id);
+        setPlots(nextPlots);
+        setPlotsLoaded(true);
+        const nextPlotIds = new Set(nextPlots.map(plot => plot.id));
+        const plotsToLoad = nextPlots.filter(plot =>
+          (cycleRequestIds.current[plot.id] ?? 0) === (cycleRequestIdsAtStart[plot.id] ?? 0)
+        );
+        const plotsToLoadIds = new Set(plotsToLoad.map(plot => plot.id));
+        setCycleLoadErrors(current => current.filter(plotId => nextPlotIds.has(plotId)));
+        setCycleLoadedIds(current => current.filter(plotId => nextPlotIds.has(plotId)));
+        setCycleLoadPending(current => {
+          const newerPending = current.filter(plotId => nextPlotIds.has(plotId) && !plotsToLoadIds.has(plotId));
+          return [...new Set([...newerPending, ...plotsToLoadIds])];
+        });
+        void Promise.all(plotsToLoad.map(plot => loadCycles(plot.id)));
+      }).catch(err => {
+        if (refreshRequestId.current !== requestId) return;
+        const plotsToLoad = plotIdsRef.current.filter(plotId =>
+          (cycleRequestIds.current[plotId] ?? 0) === (cycleRequestIdsAtStart[plotId] ?? 0)
+        );
+        void Promise.all(plotsToLoad.map(plotId => loadCycles(plotId)));
+        setError(err instanceof Error ? err.message : "Daftar petak belum dapat dimuat.");
+      });
+      const cropsRequest = listCrops().then(nextCrops => {
+        if (refreshRequestId.current !== requestId) return;
+        setCrops(nextCrops);
+        setCropsLoadFailed(false);
+      }).catch(() => {
+        if (refreshRequestId.current !== requestId) return;
+        setCropsLoadFailed(true);
+      });
+      await Promise.allSettled([plotsRequest, cropsRequest]);
     } catch (err) {
+      if (refreshRequestId.current !== requestId) return;
       setError(err instanceof Error ? err.message : "Data kebun belum dapat dimuat.");
     } finally {
-      setLoading(false);
+      if (refreshRequestId.current === requestId) setLoading(false);
     }
-  }, [farm.id]);
+  }, [farm.id, invalidateCycleRequests, loadCycles]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  const retryCycles = useCallback(async (plotId: string) => {
+    await loadCycles(plotId);
+  }, [loadCycles]);
+
+  useEffect(() => { void refresh(); return () => { refreshRequestId.current += 1; invalidateCycleRequests(); }; }, [refresh, invalidateCycleRequests]);
 
   async function submitPlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,6 +241,10 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
 
   async function submitCycle(event: FormEvent<HTMLFormElement>, plotId: string) {
     event.preventDefault();
+    if (cropsLoadFailed) {
+      setError("Katalog tanaman belum berhasil diperbarui. Coba muat ulang sebelum membuat siklus.");
+      return;
+    }
     setSavingCycle(true);
     setError("");
     setNotice("");
@@ -196,11 +272,12 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
       <div className="workspace-banner"><div className="workspace-banner-icon">⌂</div><div><strong>Setiap petak punya ceritanya sendiri.</strong><p>Tambahkan petak, pilih tanaman, lalu masukkan tanggal tanam untuk memulai pencatatan budidaya.</p></div></div>
       {notice && <p className="success-note" role="status">{notice}</p>}
       {error && <div className="error-banner" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refresh()}>Coba lagi</button></div>}
+      {cropsLoadFailed && <div className="error-banner" role="alert"><span>Katalog tanaman belum dapat dimuat. Siklus tanam tidak dapat dibuat sampai katalog berhasil diperbarui.</span><button className="text-button" onClick={() => void refresh()}>Coba lagi</button></div>}
       {showPlotForm && <form className="farm-form" onSubmit={submitPlot}><div className="form-title"><div><strong>Petak baru</strong><p>Gunakan nama dan luas petak sesuai catatan Anda.</p></div><span className="form-step">PETAK</span></div><div className="form-grid"><Field label="Nama petak" placeholder="Contoh: Petak Utara" value={plotName} onChange={e => setPlotName(e.target.value)} required maxLength={120} /><Field label="Luas (m²)" type="number" inputMode="decimal" min="0.01" step="any" placeholder="Contoh: 250" value={plotArea} onChange={e => setPlotArea(e.target.value)} required /></div><div className="form-actions"><button type="button" className="button ghost" onClick={() => setShowPlotForm(false)}>Batal</button><button className="button primary" disabled={savingPlot}>{savingPlot ? "Menyimpan…" : "Simpan petak ↗"}</button></div></form>}
       <section className="section-heading"><div><span className="eyebrow muted">PEMBAGIAN LAHAN</span><h2>Petak kebun <span className="count">{plots.length}</span></h2></div></section>
-      {loading ? <div className="loading-card"><span className="spinner" /> Memuat petak dan siklus tanam…</div> : plots.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h3>Belum ada petak</h3><p>Buat petak pertama untuk mulai mencatat tanaman dan tanggal tanam.</p><button className="button primary" onClick={() => setShowPlotForm(true)}>Tambah petak pertama ↗</button></div> : <div className="plot-list">{plots.map((plot, index) => <article className="plot-card" key={plot.id}><div className="plot-card-head"><div className="plot-index">{String(index + 1).padStart(2, "0")}</div><div className="plot-main"><h3>{plot.name}</h3><p>{plot.area_m2.toLocaleString("id-ID")} m² · Petak budidaya</p></div><button className="button outline small-button" onClick={() => { setCycleFormPlot(cycleFormPlot === plot.id ? null : plot.id); setCropId(""); setPlantingDate(""); }}>{cycleFormPlot === plot.id ? "Batal" : "+ Siklus tanam"}</button></div>
-        {cycleFormPlot === plot.id && <form className="cycle-form" onSubmit={event => void submitCycle(event, plot.id)}><Field label="Tanggal tanam" type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} required /><label className="field"><span>Tanaman</span><select value={cropId} onChange={e => setCropId(e.target.value)} required><option value="">Pilih tanaman</option>{crops.map(crop => <option key={crop.id} value={crop.id}>{crop.name}</option>)}</select></label><button className="button primary" disabled={savingCycle || crops.length === 0}>{savingCycle ? "Menyimpan…" : "Simpan siklus ↗"}</button>{crops.length === 0 && <p className="inline-hint">Katalog tanaman aktif belum tersedia.</p>}</form>}
-        <div className="cycle-list">{(cycles[plot.id] || []).length === 0 ? <p className="no-cycle">Belum ada siklus tanam pada petak ini.</p> : (cycles[plot.id] || []).map(cycle => <div className="cycle-entry" key={cycle.id}><div className="cycle-row"><span className="cycle-plant-icon">✳</span><div className="cycle-copy"><strong>{crops.find(crop => crop.id === cycle.crop_id)?.name || "Tanaman"}</strong><span>Mulai tanam {new Date(cycle.planting_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span></div><span className="cycle-status">{cycle.status}</span><button type="button" className="text-button cycle-record-toggle" aria-expanded={recordCycleId === cycle.id} onClick={() => setRecordCycleId(recordCycleId === cycle.id ? null : cycle.id)}>{recordCycleId === cycle.id ? "Tutup catatan" : "Catatan"}</button></div>{recordCycleId === cycle.id && <CycleRecords cycleId={cycle.id} />}</div>)}</div>
+      {loading && !plotsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat petak dan siklus tanam…</div> : !plotsLoaded ? null : plots.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h3>Belum ada petak</h3><p>Buat petak pertama untuk mulai mencatat tanaman dan tanggal tanam.</p><button className="button primary" onClick={() => setShowPlotForm(true)}>Tambah petak pertama ↗</button></div> : <div className="plot-list">{plots.map((plot, index) => <article className="plot-card" key={plot.id}><div className="plot-card-head"><div className="plot-index">{String(index + 1).padStart(2, "0")}</div><div className="plot-main"><h3>{plot.name}</h3><p>{plot.area_m2.toLocaleString("id-ID")} m² · Petak budidaya</p></div><button className="button outline small-button" onClick={() => { setCycleFormPlot(cycleFormPlot === plot.id ? null : plot.id); setCropId(""); setPlantingDate(""); }}>{cycleFormPlot === plot.id ? "Batal" : "+ Siklus tanam"}</button></div>
+        {cycleFormPlot === plot.id && <form className="cycle-form" onSubmit={event => void submitCycle(event, plot.id)}><Field label="Tanggal tanam" type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} required /><label className="field"><span>Tanaman</span><select value={cropId} onChange={e => setCropId(e.target.value)} required><option value="">Pilih tanaman</option>{crops.map(crop => <option key={crop.id} value={crop.id}>{crop.name}</option>)}</select></label><button className="button primary" disabled={savingCycle || crops.length === 0 || cropsLoadFailed}>{savingCycle ? "Menyimpan…" : "Simpan siklus ↗"}</button>{cropsLoadFailed ? <p className="inline-hint">Katalog tanaman belum berhasil diperbarui. Coba muat ulang sebelum membuat siklus.</p> : crops.length === 0 && <p className="inline-hint">Katalog tanaman aktif belum tersedia.</p>}</form>}
+        <div className="cycle-list">{cycleLoadPending.includes(plot.id) && !cycleLoadedIds.includes(plot.id) ? <p className="no-cycle" role="status">Memuat siklus tanam…</p> : cycleLoadErrors.includes(plot.id) && !cycleLoadedIds.includes(plot.id) ? <p className="no-cycle" role="status">Siklus tanam belum berhasil dimuat. <button type="button" className="text-button" onClick={() => void retryCycles(plot.id)}>Coba lagi</button></p> : <>{cycleLoadPending.includes(plot.id) && <p className="no-cycle" role="status">Memuat pembaruan; menampilkan siklus terakhir yang berhasil dimuat.</p>}{cycleLoadErrors.includes(plot.id) && <p className="no-cycle" role="status">Pembaruan gagal; menampilkan siklus terakhir yang berhasil dimuat. <button type="button" className="text-button" onClick={() => void retryCycles(plot.id)}>Coba lagi</button></p>}{cycleLoadedIds.includes(plot.id) && (cycles[plot.id] || []).length === 0 ? <p className="no-cycle">Belum ada siklus tanam pada petak ini.</p> : (cycles[plot.id] || []).map(cycle => <div className="cycle-entry" key={cycle.id}><div className="cycle-row"><span className="cycle-plant-icon">✳</span><div className="cycle-copy"><strong>{crops.find(crop => crop.id === cycle.crop_id)?.name || "Tanaman"}</strong><span>Mulai tanam {new Date(cycle.planting_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span></div><span className="cycle-status">{cycle.status}</span><button type="button" className="text-button cycle-record-toggle" aria-expanded={recordCycleId === cycle.id} onClick={() => setRecordCycleId(recordCycleId === cycle.id ? null : cycle.id)}>{recordCycleId === cycle.id ? "Tutup catatan" : "Catatan"}</button></div>{recordCycleId === cycle.id && <CycleRecords cycleId={cycle.id} />}</div>)}</>}</div>
       </article>)}</div>}
       <footer className="dashboard-footer"><span>AgriSmart <span>·</span> {farm.name}</span><span>Petak dan siklus tanam mengikuti data API akun Anda.</span></footer>
     </div>
@@ -211,6 +288,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [farms, setFarms] = useState<Farm[]>([]);
   const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
   const [loading, setLoading] = useState(true);
+  const [farmsLoaded, setFarmsLoaded] = useState(false);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [farmName, setFarmName] = useState("");
@@ -218,19 +296,25 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
+  const refreshRequestId = useRef(0);
   const refreshFarms = useCallback(async () => {
+    const requestId = ++refreshRequestId.current;
     setLoading(true);
     setError("");
     try {
-      setFarms(await listFarms());
+      const nextFarms = await listFarms();
+      if (refreshRequestId.current !== requestId) return;
+      setFarms(nextFarms);
+      setFarmsLoaded(true);
     } catch (err) {
+      if (refreshRequestId.current !== requestId) return;
       setError(err instanceof Error ? err.message : "Data kebun belum dapat dimuat.");
     } finally {
-      setLoading(false);
+      if (refreshRequestId.current === requestId) setLoading(false);
     }
   }, []);
 
-  useEffect(() => { void refreshFarms(); }, [refreshFarms]);
+  useEffect(() => { void refreshFarms(); return () => { refreshRequestId.current += 1; }; }, [refreshFarms]);
 
   async function submitFarm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -270,7 +354,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           <div className="breadcrumb">Ruang kerja <span>/</span> <strong>Ringkasan</strong></div>
           <div className="topbar-right"><span className="online-pill"><span className="status-dot" /> Data tersinkron saat dibuka</span><div className="avatar small">{firstName.slice(0, 1).toUpperCase()}</div></div>
         </header>
-        {selectedFarm ? <FarmWorkspace farm={selectedFarm} onBack={() => setSelectedFarm(null)} /> : <div className="dashboard-content">
+        {selectedFarm ? <FarmWorkspace key={selectedFarm.id} farm={selectedFarm} onBack={() => setSelectedFarm(null)} /> : <div className="dashboard-content">
           <section className="welcome-row">
             <div><span className="eyebrow muted">RINGKASAN PERTANIAN</span><h1>Selamat datang kembali<span className="period">.</span></h1><p>Mulai dari mana Anda ingin merawat kebun hari ini?</p></div>
             <div className="date-chip"><span>◷</span> Ruang kerja pribadi</div>
@@ -283,12 +367,12 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           {notice && <p className="success-note" role="status">{notice}</p>}
           {error && <div className="error-banner" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshFarms()}>Coba lagi</button></div>}
           {showForm && <form className="farm-form" onSubmit={submitFarm}><div className="form-title"><div><strong>Tambahkan kebun</strong><p>Mulai dengan nama dan lokasi yang mudah Anda kenali.</p></div><span className="form-step">01 / 01</span></div><div className="form-grid"><Field label="Nama kebun" placeholder="Contoh: Kebun Cabai Belakang" value={farmName} onChange={e => setFarmName(e.target.value)} required maxLength={120} /><Field label="Lokasi (opsional)" placeholder="Desa, kecamatan, kabupaten" value={locationName} onChange={e => setLocationName(e.target.value)} maxLength={160} /></div><div className="form-actions"><button type="button" className="button ghost" onClick={() => setShowForm(false)}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan kebun ↗"}</button></div></form>}
-          {loading ? <div className="loading-card"><span className="spinner" /> Memuat daftar kebun…</div> : farms.length === 0 ? <div className="empty-state"><div className="empty-icon">⌂</div><h3>Belum ada kebun tercatat</h3><p>Tambahkan kebun pertama Anda untuk mulai menyusun catatan budidaya.</p><button className="button primary" onClick={() => setShowForm(true)}>Tambahkan kebun pertama ↗</button></div> : <div className="farm-grid">{farms.map((farm, index) => <article className="farm-card" key={farm.id} role="button" tabIndex={0} onClick={() => setSelectedFarm(farm)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedFarm(farm); } }} aria-label={`Buka kebun ${farm.name}`}><div className={`farm-card-art art-${index % 3}`}><span className="farm-badge">KEBUN {String(index + 1).padStart(2, "0")}</span><span className="farm-symbol">⌁</span></div><div className="farm-card-body"><div className="farm-card-title"><h3>{farm.name}</h3><span className="arrow-mark">↗</span></div><p className="farm-location"><span>⌖</span> {farm.location_name || "Lokasi belum ditambahkan"}</p><div className="farm-card-foot"><span><span className="status-dot" /> Terdaftar</span><span className="farm-id">ID · {farm.id.slice(0, 8)}</span></div></div></article>)}</div>}
+          {loading && !farmsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat daftar kebun…</div> : !farmsLoaded ? null : farms.length === 0 ? <div className="empty-state"><div className="empty-icon">⌂</div><h3>Belum ada kebun tercatat</h3><p>Tambahkan kebun pertama Anda untuk mulai menyusun catatan budidaya.</p><button className="button primary" onClick={() => setShowForm(true)}>Tambahkan kebun pertama ↗</button></div> : <div className="farm-grid">{farms.map((farm, index) => <article className="farm-card" key={farm.id} role="button" tabIndex={0} onClick={() => setSelectedFarm(farm)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedFarm(farm); } }} aria-label={`Buka kebun ${farm.name}`}><div className={`farm-card-art art-${index % 3}`}><span className="farm-badge">KEBUN {String(index + 1).padStart(2, "0")}</span><span className="farm-symbol">⌁</span></div><div className="farm-card-body"><div className="farm-card-title"><h3>{farm.name}</h3><span className="arrow-mark">↗</span></div><p className="farm-location"><span>⌖</span> {farm.location_name || "Lokasi belum ditambahkan"}</p><div className="farm-card-foot"><span><span className="status-dot" /> Terdaftar</span><span className="farm-id">ID · {farm.id.slice(0, 8)}</span></div></div></article>)}</div>}
           <section className="next-step"><div className="next-step-icon">✳</div><div><strong>Langkah selanjutnya: petak dan siklus tanam</strong><p>Setelah kebun dibuat, tahap berikutnya adalah mencatat petak, memilih tanaman, dan tanggal tanam.</p></div><span className="coming-soon">BERIKUTNYA</span></section>
           <footer className="dashboard-footer"><span>AgriSmart <span>·</span> Catatan tumbuh, keputusan lebih baik.</span><span>Data kebun hanya ditampilkan untuk akun Anda.</span></footer>
         </div>}
       </main>
-      <nav className="mobile-nav" aria-label="Navigasi utama"><span className="mobile-nav-active">⌂<small>Ringkasan</small></span><button onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>＋<small>Tambah kebun</small></button><button onClick={onSignOut}>↪<small>Keluar</small></button></nav>
+      <nav className="mobile-nav" aria-label="Navigasi utama"><span className="mobile-nav-active">⌂<small>Ringkasan</small></span><button onClick={() => { setSelectedFarm(null); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>＋<small>Tambah kebun</small></button><button onClick={onSignOut}>↪<small>Keluar</small></button></nav>
     </div>
   );
 }

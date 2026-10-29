@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   createActivity, createExpense, createHarvest, createInput,
   FarmActivity, FarmExpense, FarmHarvest, FarmInput,
@@ -32,6 +32,9 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const [kind, setKind] = useState<Kind>("activity");
   const [rows, setRows] = useState<Record<Kind, RecordRow[]>>({ activity: [], input: [], expense: [], harvest: [] });
   const [loading, setLoading] = useState(true);
+  const [loadedSuccessfully, setLoadedSuccessfully] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const refreshRequestId = useRef(0);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
@@ -46,21 +49,26 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const [notes, setNotes] = useState("");
 
   const refresh = useCallback(async () => {
+    const requestId = ++refreshRequestId.current;
     setLoading(true);
     setError("");
+    setLoadError("");
     try {
       const [activities, inputs, expenses, harvests] = await Promise.all([
         listActivities(cycleId), listInputs(cycleId), listExpenses(cycleId), listHarvests(cycleId),
       ]);
+      if (refreshRequestId.current !== requestId) return;
       setRows({ activity: activities, input: inputs, expense: expenses, harvest: harvests });
+      setLoadedSuccessfully(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Catatan budidaya gagal dimuat.");
+      if (refreshRequestId.current !== requestId) return;
+      setLoadError(err instanceof Error ? err.message : "Catatan budidaya gagal dimuat.");
     } finally {
-      setLoading(false);
+      if (refreshRequestId.current === requestId) setLoading(false);
     }
   }, [cycleId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); return () => { refreshRequestId.current += 1; }; }, [refresh]);
 
   useEffect(() => {
     setDate(today());
@@ -101,18 +109,19 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const items = rows[kind];
   const totalExpenses = rows.expense.reduce((sum, item) => sum + (item as FarmExpense).amount, 0);
   const summary = [
-    { label: "Kegiatan", value: String(rows.activity.length) },
-    { label: "Sarana dipakai", value: String(rows.input.length) },
-    { label: "Catatan panen", value: String(rows.harvest.length) },
-    { label: "Total biaya", value: money(totalExpenses) },
+    { label: "Kegiatan", value: loadedSuccessfully ? String(rows.activity.length) : "—" },
+    { label: "Sarana dipakai", value: loadedSuccessfully ? String(rows.input.length) : "—" },
+    { label: "Catatan panen", value: loadedSuccessfully ? String(rows.harvest.length) : "—" },
+    { label: "Total biaya", value: loadedSuccessfully ? money(totalExpenses) : "—" },
   ];
   return <section className="records-panel">
     <div className="records-head"><div><span className="eyebrow muted">JURNAL BUDIDAYA</span><h4>Catatan siklus</h4></div><button type="button" className="button outline small-button" onClick={() => setShowForm(v => !v)}>{showForm ? "Tutup" : "+ Catat"}</button></div>
     <div className="journal-summary">{summary.map(item => <div className="journal-metric" key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}</div>
     <div className="record-tabs" role="tablist" aria-label="Jenis catatan">
-      {(Object.keys(labels) as Kind[]).map(key => <button type="button" role="tab" aria-selected={kind === key} className={kind === key ? "record-tab active" : "record-tab"} key={key} onClick={() => changeKind(key)}>{labels[key]} <span>{rows[key].length}</span></button>)}
+      {(Object.keys(labels) as Kind[]).map(key => <button type="button" role="tab" aria-selected={kind === key} className={kind === key ? "record-tab active" : "record-tab"} key={key} onClick={() => changeKind(key)}>{labels[key]} <span>{loadedSuccessfully ? rows[key].length : "—"}</span></button>)}
     </div>
     {notice && <p className="success-note" role="status">{notice}</p>}
+    {loadError && <div className="form-error" role="alert"><span>{loadError}</span> <button type="button" className="text-button" onClick={() => void refresh()}>Coba lagi</button></div>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {showForm && <form className="record-form" onSubmit={submit}>
       {kind === "activity" && <label className="field"><span>Jenis kegiatan</span><select value={type} onChange={e => setType(e.target.value)} required><option value="watering">Penyiraman</option><option value="weeding">Penyiangan</option><option value="pruning">Pemangkasan</option><option value="planting">Penanaman</option><option value="inspection">Pemeriksaan</option><option value="other">Lainnya</option></select></label>}
@@ -125,7 +134,8 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
       <div className="form-actions"><button type="button" className="button ghost" onClick={() => setShowForm(false)}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan catatan ↗"}</button></div>
       {kind === "input" && <p className="inline-hint">Catat penggunaan aktual; formulir ini tidak menghitung atau merekomendasikan dosis.</p>}
     </form>}
-    {loading ? <p className="no-cycle">Memuat catatan…</p> : items.length === 0 ? <p className="no-cycle">Belum ada catatan {labels[kind].toLowerCase()} untuk siklus ini.</p> : <div className="record-list">{items.map(item => <article className="record-item" key={item.id}>
+    {loading && loadedSuccessfully && <p className="no-cycle" role="status">Memuat pembaruan; menampilkan catatan terakhir yang berhasil dimuat.</p>}
+    {loading && !loadedSuccessfully ? <p className="no-cycle">Memuat catatan…</p> : !loadedSuccessfully ? <p className="no-cycle" role="status">Catatan belum berhasil dimuat.</p> : items.length === 0 ? <p className="no-cycle">Belum ada catatan {labels[kind].toLowerCase()} untuk siklus ini.</p> : <div className="record-list">{items.map(item => <article className="record-item" key={item.id}>
       <div className="record-item-top"><strong>{kind === "activity" ? activityNames[(item as FarmActivity).activity_type] || (item as FarmActivity).activity_type : kind === "input" ? (item as FarmInput).product_name : kind === "expense" ? (item as FarmExpense).description : "Hasil panen"}</strong><time>{formatDate(kind === "activity" ? (item as FarmActivity).activity_date : kind === "input" ? (item as FarmInput).applied_date : kind === "expense" ? (item as FarmExpense).expense_date : (item as FarmHarvest).harvest_date)}</time></div>
       <p>{kind === "input" ? `${(item as FarmInput).quantity} ${(item as FarmInput).unit} · ${(inputNames[(item as FarmInput).input_type] || (item as FarmInput).input_type)}` : kind === "expense" ? money((item as FarmExpense).amount) + " · " + (expenseNames[(item as FarmExpense).expense_type] || (item as FarmExpense).expense_type) : kind === "harvest" ? `${(item as FarmHarvest).quantity} ${(item as FarmHarvest).unit}${(item as FarmHarvest).quality_grade ? " · " + (item as FarmHarvest).quality_grade : ""}` : (item as FarmActivity).notes || "Kegiatan tercatat"}</p>
       {kind !== "activity" && item.notes && <p className="record-note">{item.notes}</p>}
