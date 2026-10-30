@@ -34,6 +34,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const [loading, setLoading] = useState(true);
   const [loadedSuccessfully, setLoadedSuccessfully] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const mountedRef = useRef(false);
   const refreshRequestId = useRef(0);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -68,7 +69,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
     }
   }, [cycleId]);
 
-  useEffect(() => { void refresh(); return () => { refreshRequestId.current += 1; }; }, [refresh]);
+  useEffect(() => { mountedRef.current = true; void refresh(); return () => { mountedRef.current = false; refreshRequestId.current += 1; }; }, [refresh]);
 
   useEffect(() => {
     setDate(today());
@@ -96,13 +97,15 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
       } else {
         await createHarvest(cycleId, { quantity: Number(quantity), unit: unit.trim(), harvest_date: date, quality_grade: grade.trim(), notes });
       }
+      if (!mountedRef.current) return;
       setShowForm(false); setName(""); setQuantity(""); setAmount(""); setGrade(""); setNotes("");
       setNotice("Catatan berhasil disimpan.");
       await refresh();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Catatan belum berhasil disimpan.");
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   }
 

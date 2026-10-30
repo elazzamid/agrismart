@@ -81,6 +81,8 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 32. Start a per-plot cycle request, start a newer workspace refresh, then resolve the old request; verify it cannot update cycle data or leave a stale pending indicator. Repeat while unmounting the workspace.
 33. Successfully load an empty cycle list, refresh it and fail the request; verify the UI identifies a failed refresh of the last successful empty result rather than an initial-load failure.
 34. Start overlapping dashboard farm-list refreshes and complete them out of order; verify only the latest response controls the farm list, error, and loading state, then unmount during a pending request and verify it cannot update state afterward.
+35. Submit a farm, plot, or crop-cycle creation request, unmount its view before the POST resolves, and verify completion does not trigger state updates or a follow-up refresh in the unmounted view.
+36. Submit a journal record, close the journal before the POST resolves, and verify completion does not trigger state updates or a follow-up journal refresh after unmount.
 
 ### Scope and limitations
 

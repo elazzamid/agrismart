@@ -162,6 +162,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     }
   }, []);
 
+  const mountedRef = useRef(false);
   const refreshRequestId = useRef(0);
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestId.current;
@@ -218,7 +219,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     await loadCycles(plotId);
   }, [loadCycles]);
 
-  useEffect(() => { void refresh(); return () => { refreshRequestId.current += 1; invalidateCycleRequests(); }; }, [refresh, invalidateCycleRequests]);
+  useEffect(() => { mountedRef.current = true; void refresh(); return () => { mountedRef.current = false; refreshRequestId.current += 1; invalidateCycleRequests(); }; }, [refresh, invalidateCycleRequests]);
 
   async function submitPlot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -227,15 +228,17 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     setNotice("");
     try {
       await createPlot(farm.id, { name: plotName.trim(), area_m2: Number(plotArea) });
+      if (!mountedRef.current) return;
       setPlotName("");
       setPlotArea("");
       setShowPlotForm(false);
       setNotice("Petak berhasil ditambahkan.");
       await refresh();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Petak belum berhasil disimpan.");
     } finally {
-      setSavingPlot(false);
+      if (mountedRef.current) setSavingPlot(false);
     }
   }
 
@@ -250,15 +253,17 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     setNotice("");
     try {
       await createCropCycle(plotId, { crop_id: cropId, planting_date: plantingDate });
+      if (!mountedRef.current) return;
       setCycleFormPlot(null);
       setCropId("");
       setPlantingDate("");
       setNotice("Siklus tanam berhasil ditambahkan.");
       await refresh();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Siklus tanam belum berhasil disimpan.");
     } finally {
-      setSavingCycle(false);
+      if (mountedRef.current) setSavingCycle(false);
     }
   }
 
@@ -296,6 +301,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
+  const mountedRef = useRef(false);
   const refreshRequestId = useRef(0);
   const refreshFarms = useCallback(async () => {
     const requestId = ++refreshRequestId.current;
@@ -314,7 +320,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     }
   }, []);
 
-  useEffect(() => { void refreshFarms(); return () => { refreshRequestId.current += 1; }; }, [refreshFarms]);
+  useEffect(() => { mountedRef.current = true; void refreshFarms(); return () => { mountedRef.current = false; refreshRequestId.current += 1; }; }, [refreshFarms]);
 
   async function submitFarm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -323,15 +329,17 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     setNotice("");
     try {
       await createFarm({ name: farmName.trim(), location_name: locationName.trim() });
+      if (!mountedRef.current) return;
       setFarmName("");
       setLocationName("");
       setShowForm(false);
       setNotice("Kebun berhasil ditambahkan.");
       await refreshFarms();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Kebun belum berhasil disimpan.");
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   }
 
