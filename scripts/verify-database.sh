@@ -16,6 +16,14 @@ TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -
   exit 1
 }
 
+printf '%s\n' "Checking seeded MVP crop catalog..."
+MVP_CROP_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(DISTINCT code) FROM crops WHERE is_active = TRUE AND code IN ('cabai','padi','jagung');")"
+
+[ "$MVP_CROP_COUNT" = "3" ] || {
+  echo "Expected 3 active MVP crops (cabai, padi, jagung), found $MVP_CROP_COUNT" >&2
+  exit 1
+}
+
 printf '%s\n' "Checking required constraints and indexes..."
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
