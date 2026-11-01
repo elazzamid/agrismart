@@ -83,6 +83,8 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 34. Start overlapping dashboard farm-list refreshes and complete them out of order; verify only the latest response controls the farm list, error, and loading state, then unmount during a pending request and verify it cannot update state afterward.
 35. Submit a farm, plot, or crop-cycle creation request, unmount its view before the POST resolves, and verify completion does not trigger state updates or a follow-up refresh in the unmounted view.
 36. Submit a journal record, close the journal before the POST resolves, and verify completion does not trigger state updates or a follow-up journal refresh after unmount.
+37. Start registration, unmount the auth screen before the registration response resolves, and verify it does not start login or update auth-screen state afterward.
+38. Start login, unmount the auth screen before the login response resolves, and verify it does not save a token, call the authenticated callback, or update auth-screen state afterward.
 
 ### Scope and limitations
 

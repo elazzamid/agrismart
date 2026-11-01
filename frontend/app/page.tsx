@@ -51,6 +51,12 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User, token: 
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,14 +65,17 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User, token: 
     try {
       if (mode === "register") {
         await register({ email: email.trim(), password, full_name: fullName.trim(), phone: phone.trim() });
+        if (!mountedRef.current) return;
       }
       const response = await login(email.trim(), password);
+      if (!mountedRef.current) return;
       saveToken(response.access_token);
       onAuthenticated(response.user, response.access_token);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.");
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   }
 
