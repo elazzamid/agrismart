@@ -58,7 +58,7 @@ func TestCropCycleCreateAcceptsMatchingActiveVariety(t *testing.T) {
 	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$3, \$4, \$5::date\s+FROM farm_plots p\s+JOIN farms f ON f.id = p.farm_id\s+JOIN farmer_profiles fp ON fp.id = f.farmer_id\s+WHERE p.id = \$1 AND fp.user_id = \$2\s+RETURNING id, plot_id, crop_id, variety_id, planting_date::text, status`).
 		WithArgs(plotID, userID, cropID, &varietyID, "2026-08-01").
 		WillReturnRows(pgxmock.NewRows([]string{"id", "plot_id", "crop_id", "variety_id", "planting_date", "status"}).
-			AddRow(cycleID, plotID, cropID, varietyID, "2026-08-01", "active"))
+			AddRow(cycleID, plotID, cropID, &varietyID, "2026-08-01", "active"))
 
 	got, err := s.Create(context.Background(), userID, plotID, CreateCropCycleInput{CropID: cropID, VarietyID: &varietyID, PlantingDate: "2026-08-01"})
 	if err != nil {
