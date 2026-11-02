@@ -85,6 +85,7 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 36. Submit a journal record, close the journal before the POST resolves, and verify completion does not trigger state updates or a follow-up journal refresh after unmount.
 37. Start registration, unmount the auth screen before the registration response resolves, and verify it does not start login or update auth-screen state afterward.
 38. Start login, unmount the auth screen before the login response resolves, and verify it does not save a token, call the authenticated callback, or update auth-screen state afterward.
+39. With an existing session token, start the `/api/v1/auth/me` session-restoration request, unmount `HomePage` before it resolves, and verify the response cannot update page state after unmount.
 
 ### Scope and limitations
 
