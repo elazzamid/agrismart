@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-if [ -z "\${DB_CONTAINER:-}" ]; then
+if [ -z "${DB_CONTAINER:-}" ]; then
   DB_CONTAINER="$(docker compose ps -q postgres | sed -n '1p')"
 fi
 
@@ -9,8 +9,8 @@ fi
   echo "PostgreSQL Compose service is not running; start it with 'docker compose up -d postgres' or set DB_CONTAINER." >&2
   exit 1
 }
-DB_USER="\${POSTGRES_USER:-agrismart}"
-DB_NAME="\${POSTGRES_DB:-agrismart}"
+DB_USER="${POSTGRES_USER:-agrismart}"
+DB_NAME="${POSTGRES_DB:-agrismart}"
 
 printf '%s\n' "Checking PostgreSQL container: $DB_CONTAINER"
 docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME"
