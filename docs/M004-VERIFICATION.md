@@ -39,6 +39,7 @@
 
 CI runs:
 
+- `npm test` (Node built-in tests for date-only age and unambiguous stage-range matching)
 - `npm run typecheck`
 - `npm run build`
 - existing Go tests/build and PostgreSQL migration smoke test
@@ -88,10 +89,15 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 39. With an existing session token, start the `/api/v1/auth/me` session-restoration request, unmount `HomePage` before it resolves, and verify the response cannot update page state after unmount.
 40. Select a crop with active varieties, verify only that crop’s varieties are shown, choose one, save the crop cycle, and verify the request includes the selected `variety_id`.
 41. Change crops while a variety request is pending and resolve the requests out of order; verify only the latest crop’s options appear. Simulate a variety-catalog failure and verify retry is available and saving stays disabled until the catalog loads; if the catalog is empty, verify a cycle can be saved without a variety.
+42. For an active cycle, verify age is calculated from the local calendar date using date-only arithmetic: planting today is 0 days, yesterday is 1 day, and a future or malformed date does not show a numeric age.
+43. Verify planned, harvested, and cancelled cycles do not display an active growth-stage label.
+44. For an active cycle with exactly one matching catalog range, verify the indicative sample-stage label appears; gaps, overlapping or open-ended ranges, invalid bounds, and missing ranges must not be guessed.
+45. Simulate a growth-stage catalog failure; verify age remains visible, retry is available, and no fallback or fabricated stage is shown.
+46. Verify the UI labels stage ranges as sample metadata and does not present them as cultivation advice, plant-condition assessment, or harvest prediction.
 
 ### Scope and limitations
 
-- Activity/input/expense/harvest forms and optional crop-variety selection are included. Growth-stage tracking, browser end-to-end automation, and manual browser verification remain outstanding.
+- Active crop cycles display elapsed calendar days from the planting date and an indicative label only when exactly one growth-stage catalog range matches. Planned, harvested, cancelled, unknown-status, and future-dated cycles do not receive an active-stage label. The seeded ranges are sample metadata, not agronomic recommendations; the UI explicitly disclaims condition assessment and harvest prediction. Browser end-to-end automation and manual browser verification remain outstanding. The date and range-matching helper is covered by `npm test` using Node’s built-in test runner.
 - The backend issues bearer tokens; `sessionStorage` is tab-scoped but JavaScript-accessible and is not equivalent to an HttpOnly cookie.
 - No production deployment, VPS change, PR merge, or database mutation was performed.
 - The feature branch is based on `feature/m003-farm-operations` because the dashboard depends on the farm API; M003 and M004 are not merged into `main`.
