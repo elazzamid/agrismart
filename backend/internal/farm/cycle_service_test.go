@@ -7,7 +7,7 @@ import (
 	"github.com/pashagolub/pgxmock/v4"
 )
 
-const validateCropSelectionQuery = `(?s)SELECT EXISTS.*c\\.is_active = TRUE.*v\\.crop_id = c\\.id.*v\\.is_active = TRUE`
+const validateCropSelectionQuery = `(?s)SELECT EXISTS.*c[.]is_active = TRUE.*v[.]crop_id = c[.]id.*v[.]is_active = TRUE`
 
 func TestCropCycleCreateScopesThroughAuthenticatedUserProfile(t *testing.T) {
 	pool, err := pgxmock.NewPool()
