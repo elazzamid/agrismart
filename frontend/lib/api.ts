@@ -88,6 +88,7 @@ export async function createFarm(input: { name: string; location_name: string })
 
 export type Plot = { id: string; farm_id: string; name: string; area_m2: number };
 export type Crop = { id: string; code: string; name: string; description?: string; is_active: boolean };
+export type CropVariety = { id: string; crop_id: string; name: string; description?: string; is_active: boolean };
 export type CropCycle = {
   id: string;
   plot_id: string;
@@ -112,11 +113,15 @@ export async function listCrops(): Promise<Crop[]> {
   return request<Crop[]>("/api/v1/crops");
 }
 
+export async function listCropVarieties(cropId: string): Promise<CropVariety[]> {
+  return request<CropVariety[]>(`/api/v1/crops/${encodeURIComponent(cropId)}/varieties`);
+}
+
 export async function listCropCycles(plotId: string): Promise<CropCycle[]> {
   return request<CropCycle[]>(`/api/v1/plots/${encodeURIComponent(plotId)}/crop-cycles`);
 }
 
-export async function createCropCycle(plotId: string, input: { crop_id: string; planting_date: string }): Promise<CropCycle> {
+export async function createCropCycle(plotId: string, input: { crop_id: string; variety_id?: string | null; planting_date: string }): Promise<CropCycle> {
   return request<CropCycle>(`/api/v1/plots/${encodeURIComponent(plotId)}/crop-cycles`, {
     method: "POST",
     body: JSON.stringify(input),

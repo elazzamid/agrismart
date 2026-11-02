@@ -86,10 +86,12 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 37. Start registration, unmount the auth screen before the registration response resolves, and verify it does not start login or update auth-screen state afterward.
 38. Start login, unmount the auth screen before the login response resolves, and verify it does not save a token, call the authenticated callback, or update auth-screen state afterward.
 39. With an existing session token, start the `/api/v1/auth/me` session-restoration request, unmount `HomePage` before it resolves, and verify the response cannot update page state after unmount.
+40. Select a crop with active varieties, verify only that crop’s varieties are shown, choose one, save the crop cycle, and verify the request includes the selected `variety_id`.
+41. Change crops while a variety request is pending and resolve the requests out of order; verify only the latest crop’s options appear. Simulate a variety-catalog failure and verify retry is available and saving stays disabled until the catalog loads; if the catalog is empty, verify a cycle can be saved without a variety.
 
 ### Scope and limitations
 
-- Activity/input/expense/harvest forms are included. Browser end-to-end automation and manual browser verification remain outstanding.
+- Activity/input/expense/harvest forms and optional crop-variety selection are included. Growth-stage tracking, browser end-to-end automation, and manual browser verification remain outstanding.
 - The backend issues bearer tokens; `sessionStorage` is tab-scoped but JavaScript-accessible and is not equivalent to an HttpOnly cookie.
 - No production deployment, VPS change, PR merge, or database mutation was performed.
 - The feature branch is based on `feature/m003-farm-operations` because the dashboard depends on the farm API; M003 and M004 are not merged into `main`.
