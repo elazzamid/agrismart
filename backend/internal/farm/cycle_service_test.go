@@ -7,6 +7,8 @@ import (
 	"github.com/pashagolub/pgxmock/v4"
 )
 
+const validateCropSelectionQuery = `(?s)SELECT EXISTS.*c\\.is_active = TRUE.*v\\.crop_id = c\\.id.*v\\.is_active = TRUE`
+
 func TestCropCycleCreateScopesThroughAuthenticatedUserProfile(t *testing.T) {
 	pool, err := pgxmock.NewPool()
 	if err != nil {
@@ -18,6 +20,9 @@ func TestCropCycleCreateScopesThroughAuthenticatedUserProfile(t *testing.T) {
 	plotID := "00000000-0000-0000-0000-000000000002"
 	cropID := "00000000-0000-0000-0000-000000000003"
 	cycleID := "00000000-0000-0000-0000-000000000004"
+	pool.ExpectQuery(validateCropSelectionQuery).
+		WithArgs(cropID, (*string)(nil)).
+		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$3, \$4, \$5::date\s+FROM farm_plots p\s+JOIN farms f ON f.id = p.farm_id\s+JOIN farmer_profiles fp ON fp.id = f.farmer_id\s+WHERE p.id = \$1 AND fp.user_id = \$2\s+RETURNING id, plot_id, crop_id, variety_id, planting_date::text, status`).
 		WithArgs(plotID, userID, cropID, (*string)(nil), "2026-08-01").
 		WillReturnRows(pgxmock.NewRows([]string{"id", "plot_id", "crop_id", "variety_id", "planting_date", "status"}).
@@ -28,6 +33,96 @@ func TestCropCycleCreateScopesThroughAuthenticatedUserProfile(t *testing.T) {
 	}
 	if got.ID != cycleID || got.PlotID != plotID {
 		t.Fatalf("unexpected cycle: %+v", got)
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCropCycleCreateAcceptsMatchingActiveVariety(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewCropCycleService(pool)
+	userID := "00000000-0000-0000-0000-000000000001"
+	plotID := "00000000-0000-0000-0000-000000000002"
+	cropID := "00000000-0000-0000-0000-000000000003"
+	varietyID := "00000000-0000-0000-0000-000000000005"
+	cycleID := "00000000-0000-0000-0000-000000000004"
+
+	pool.ExpectQuery(validateCropSelectionQuery).
+		WithArgs(cropID, &varietyID).
+		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
+	pool.ExpectQuery(`INSERT INTO crop_cycles \(plot_id, crop_id, variety_id, planting_date\)\s+SELECT p.id, \$3, \$4, \$5::date\s+FROM farm_plots p\s+JOIN farms f ON f.id = p.farm_id\s+JOIN farmer_profiles fp ON fp.id = f.farmer_id\s+WHERE p.id = \$1 AND fp.user_id = \$2\s+RETURNING id, plot_id, crop_id, variety_id, planting_date::text, status`).
+		WithArgs(plotID, userID, cropID, &varietyID, "2026-08-01").
+		WillReturnRows(pgxmock.NewRows([]string{"id", "plot_id", "crop_id", "variety_id", "planting_date", "status"}).
+			AddRow(cycleID, plotID, cropID, varietyID, "2026-08-01", "active"))
+
+	got, err := s.Create(context.Background(), userID, plotID, CreateCropCycleInput{CropID: cropID, VarietyID: &varietyID, PlantingDate: "2026-08-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.VarietyID == nil || *got.VarietyID != varietyID {
+		t.Fatalf("unexpected variety: %+v", got.VarietyID)
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCropCycleCreateRejectsInactiveCropOrUnavailableVariety(t *testing.T) {
+	cropID := "00000000-0000-0000-0000-000000000003"
+	varietyID := "00000000-0000-0000-0000-000000000005"
+	for _, tc := range []struct {
+		name      string
+		varietyID *string
+	}{
+		{name: "inactive crop"},
+		{name: "inactive or mismatched variety", varietyID: &varietyID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pool, err := pgxmock.NewPool()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer pool.Close()
+			s := NewCropCycleService(pool)
+			pool.ExpectQuery(validateCropSelectionQuery).
+				WithArgs(cropID, tc.varietyID).
+				WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
+
+			_, err = s.Create(context.Background(), "user", "plot", CreateCropCycleInput{
+				CropID: cropID, VarietyID: tc.varietyID, PlantingDate: "2026-08-01",
+			})
+			if err != ErrInvalidCropCycleInput {
+				t.Fatalf("Create() error = %v, want ErrInvalidCropCycleInput", err)
+			}
+			if err := pool.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestCropCycleCreateRejectsMalformedIDsBeforeDatabaseCall(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewCropCycleService(pool)
+	validCropID := "00000000-0000-0000-0000-000000000003"
+	invalidVarietyID := "not-a-uuid"
+
+	for _, in := range []CreateCropCycleInput{
+		{CropID: "not-a-uuid", PlantingDate: "2026-08-01"},
+		{CropID: validCropID, VarietyID: &invalidVarietyID, PlantingDate: "2026-08-01"},
+	} {
+		if _, err := s.Create(context.Background(), "user", "plot", in); err != ErrInvalidCropCycleInput {
+			t.Fatalf("Create(%+v) error = %v, want ErrInvalidCropCycleInput", in, err)
+		}
 	}
 	if err := pool.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

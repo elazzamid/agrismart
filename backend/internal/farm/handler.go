@@ -183,7 +183,7 @@ func (h *Handler) CreateCropCycle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, ErrInvalidCropCycleInput) {
-		writeError(w, http.StatusBadRequest, "crop_id and valid planting_date are required")
+		writeError(w, http.StatusBadRequest, "crop_id must reference an active crop, variety_id must be active and belong to crop_id, and planting_date must be valid")
 		return
 	}
 	if err != nil {

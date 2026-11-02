@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -33,17 +34,61 @@ type CropCycleService struct{ db queryer }
 
 func NewCropCycleService(db queryer) *CropCycleService { return &CropCycleService{db: db} }
 
+func isValidCropCycleUUID(value string) bool {
+	var id pgtype.UUID
+	return id.Scan(value) == nil && id.Valid
+}
+
 // Create scopes the operation using the authenticated users.id. The database
 // relationship is resolved through farmer_profiles.user_id.
 func (s *CropCycleService) Create(ctx context.Context, userID, plotID string, in CreateCropCycleInput) (CropCycle, error) {
-	if strings.TrimSpace(in.CropID) == "" {
+	in.CropID = strings.TrimSpace(in.CropID)
+	if in.VarietyID != nil {
+		varietyID := strings.TrimSpace(*in.VarietyID)
+		if varietyID == "" {
+			in.VarietyID = nil
+		} else {
+			if !isValidCropCycleUUID(varietyID) {
+				return CropCycle{}, ErrInvalidCropCycleInput
+			}
+			in.VarietyID = &varietyID
+		}
+	}
+	if !isValidCropCycleUUID(in.CropID) {
 		return CropCycle{}, ErrInvalidCropCycleInput
 	}
 	if _, err := time.Parse("2006-01-02", in.PlantingDate); err != nil {
 		return CropCycle{}, ErrInvalidCropCycleInput
 	}
-	var c CropCycle
+
+	var validCatalogSelection bool
 	err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM crops c
+			WHERE c.id = $1
+			  AND c.is_active = TRUE
+			  AND (
+				$2::uuid IS NULL
+				OR EXISTS (
+					SELECT 1
+					FROM crop_varieties v
+					WHERE v.id = $2
+					  AND v.crop_id = c.id
+					  AND v.is_active = TRUE
+				)
+			  )
+		)
+	`, in.CropID, in.VarietyID).Scan(&validCatalogSelection)
+	if err != nil {
+		return CropCycle{}, err
+	}
+	if !validCatalogSelection {
+		return CropCycle{}, ErrInvalidCropCycleInput
+	}
+
+	var c CropCycle
+	err = s.db.QueryRow(ctx, `
 		INSERT INTO crop_cycles (plot_id, crop_id, variety_id, planting_date)
 		SELECT p.id, $3, $4, $5::date
 		FROM farm_plots p
