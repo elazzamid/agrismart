@@ -103,6 +103,7 @@ func (h *Handler) GetCrop(w http.ResponseWriter, r *http.Request) {
 	if _, ok := userID(r); !ok { writeError(w, http.StatusUnauthorized, "unauthorized"); return }
 	cropID := strings.TrimPrefix(r.URL.Path, "/api/v1/crops/")
 	if cropID == "" { writeError(w, http.StatusBadRequest, "crop id is required"); return }
+	if !isValidCropCycleUUID(cropID) { writeError(w, http.StatusBadRequest, "crop id must be a valid UUID"); return }
 	crop, err := h.catalogService.GetCrop(r.Context(), cropID)
 	if errors.Is(err, ErrNotFound) { writeError(w, http.StatusNotFound, "crop not found"); return }
 	if err != nil { writeError(w, http.StatusInternalServerError, "internal server error"); return }
@@ -115,6 +116,7 @@ func (h *Handler) ListVarieties(w http.ResponseWriter, r *http.Request) {
 	cropID = strings.TrimSuffix(cropID, "/varieties")
 	cropID = strings.TrimSuffix(cropID, "/")
 	if cropID == "" { writeError(w, http.StatusBadRequest, "crop id is required"); return }
+	if !isValidCropCycleUUID(cropID) { writeError(w, http.StatusBadRequest, "crop id must be a valid UUID"); return }
 	varieties, err := h.catalogService.ListVarieties(r.Context(), cropID)
 	if err != nil { writeError(w, http.StatusInternalServerError, "internal server error"); return }
 	writeJSON(w, http.StatusOK, varieties)
@@ -126,6 +128,7 @@ func (h *Handler) ListGrowthStages(w http.ResponseWriter, r *http.Request) {
 	cropID = strings.TrimSuffix(cropID, "/growth-stages")
 	cropID = strings.TrimSuffix(cropID, "/")
 	if cropID == "" { writeError(w, http.StatusBadRequest, "crop id is required"); return }
+	if !isValidCropCycleUUID(cropID) { writeError(w, http.StatusBadRequest, "crop id must be a valid UUID"); return }
 	stages, err := h.catalogService.ListGrowthStages(r.Context(), cropID)
 	if err != nil { writeError(w, http.StatusInternalServerError, "internal server error"); return }
 	writeJSON(w, http.StatusOK, stages)

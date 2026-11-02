@@ -161,3 +161,33 @@ func TestCreateCropCycleRejectsMalformedPlotIDBeforeDatabaseCall(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCropCatalogHandlersRejectMalformedCropIDBeforeDatabaseCall(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		invoke func(*Handler, http.ResponseWriter, *http.Request)
+	}{
+		{name: "get crop", path: "/api/v1/crops/not-a-uuid", invoke: (*Handler).GetCrop},
+		{name: "list varieties", path: "/api/v1/crops/not-a-uuid/varieties", invoke: (*Handler).ListVarieties},
+		{name: "list growth stages", path: "/api/v1/crops/not-a-uuid/growth-stages", invoke: (*Handler).ListGrowthStages},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHandler(nil, nil, nil, nil)
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req = req.WithContext(auth.WithUserID(context.Background(), "user-1"))
+			rec := httptest.NewRecorder()
+
+			tt.invoke(h, rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), "crop id must be a valid UUID") {
+				t.Fatalf("response does not explain invalid crop id: %s", rec.Body.String())
+			}
+		})
+	}
+}
