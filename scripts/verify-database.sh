@@ -124,7 +124,7 @@ BEGIN
     RAISE EXCEPTION 'Missing required constraint: farm_harvests_quality_grade_check';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'farm_harvests_notes_check') THEN
-    RAISE EXCEPTION 'Missing required constraint: farm_harvests_notes_check'
+    RAISE EXCEPTION 'Missing required constraint: farm_harvests_notes_check';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_farm_harvests_cycle_date') THEN
     RAISE EXCEPTION 'Missing required index: idx_farm_harvests_cycle_date';
