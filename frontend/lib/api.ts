@@ -146,3 +146,17 @@ export const createExpense = (id: string, input: Omit<FarmExpense, "id" | "crop_
 export const listHarvests = (id: string) => request<FarmHarvest[]>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/harvests`);
 export const createHarvest = (id: string, input: Omit<FarmHarvest, "id" | "crop_cycle_id">) =>
   request<FarmHarvest>(`/api/v1/crop-cycles/${encodeURIComponent(id)}/harvests`, { method: "POST", body: JSON.stringify(input) });
+
+export type CropGrowthStage = {
+  id: string;
+  crop_id: string;
+  name: string;
+  sequence_no: number;
+  min_days?: number;
+  max_days?: number;
+  description?: string;
+};
+
+export async function listCropGrowthStages(cropId: string): Promise<CropGrowthStage[]> {
+  return request<CropGrowthStage[]>(`/api/v1/crops/${encodeURIComponent(cropId)}/growth-stages`);
+}
