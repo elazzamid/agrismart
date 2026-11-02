@@ -404,15 +404,30 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const unauthorized = () => setUser(null);
+    let active = true;
+    const unauthorized = () => {
+      if (active) setUser(null);
+    };
     window.addEventListener("agrismart:unauthorized", unauthorized);
     const token = getToken();
     if (!token) {
-      setChecking(false);
+      if (active) setChecking(false);
     } else {
-      currentUser().then(setUser).catch(() => setUser(null)).finally(() => setChecking(false));
+      currentUser()
+        .then((nextUser) => {
+          if (active) setUser(nextUser);
+        })
+        .catch(() => {
+          if (active) setUser(null);
+        })
+        .finally(() => {
+          if (active) setChecking(false);
+        });
     }
-    return () => window.removeEventListener("agrismart:unauthorized", unauthorized);
+    return () => {
+      active = false;
+      window.removeEventListener("agrismart:unauthorized", unauthorized);
+    };
   }, []);
 
   if (checking) return <main className="splash"><Brand /><span className="spinner" /><p>Menyiapkan ruang kerja Anda…</p></main>;
