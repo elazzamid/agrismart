@@ -10,9 +10,9 @@
     "test": "node --test lib/crop-progress.test.mjs"
   },
   "dependencies": {
-    "next": "15.5.6",
-    "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "next": "15.5.28",
+    "react": "19.1.2",
+    "react-dom": "19.1.2"
   },
   "devDependencies": {
     "@types/node": "22.18.6",
