@@ -6,28 +6,28 @@ The development database is provided by Docker Compose using PostgreSQL 16.
 
 Start it with:
 
-```bash
+\`\`\`bash
 docker compose up -d postgres
-```
+\`\`\`
 
-The SQL files in `database/migrations/` are mounted into PostgreSQL's initialization directory and are executed in lexical filename order on a fresh database volume.
+The SQL files in \`database/migrations/\` are mounted into PostgreSQL's initialization directory and are executed in lexical filename order on a fresh database volume.
 
 ## Verification
 
 Run:
 
-```bash
+\`\`\`bash
 sh scripts/verify-database.sh
-```
+\`\`\`
 
-The verification checks PostgreSQL readiness, the eight core M001 tables, and the key database constraints.
+The verification checks PostgreSQL readiness, all 12 required tables, the 3 active MVP crops, 6 active varieties, 13 required growth stages, and required constraints/indexes.
 
 To force a clean migration run locally:
 
-```bash
+\`\`\`bash
 docker compose down -v
 docker compose up -d postgres
 sh scripts/verify-database.sh
-```
+\`\`\`
 
-Never commit a real `.env` file or production credentials. Use `.env.example` as the local configuration template.
+Never commit a real \`.env\` file or production credentials. Use \`.env.example\` as the local configuration template.
