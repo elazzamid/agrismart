@@ -13,7 +13,7 @@ import (
 
 func TestCreateCropCycleRequiresAuthentication(t *testing.T) {
 	h := NewHandler(nil, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/plot-1/crop-cycles", strings.NewReader("{\"crop_id\":\"crop-1\",\"planting_date\":\"2026-08-01\"}"))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/00000000-0000-0000-0000-000000000002/crop-cycles", strings.NewReader("{\"crop_id\":\"00000000-0000-0000-0000-000000000003\",\"planting_date\":\"2026-08-01\"}"))
 	rec := httptest.NewRecorder()
 
 	h.CreateCropCycle(rec, req)
@@ -38,7 +38,7 @@ func TestCreateCropCycleRejectsUnavailableVarietyAsBadRequest(t *testing.T) {
 
 	h := NewHandler(nil, nil, nil, NewCropCycleService(pool))
 	body := "{\"crop_id\":\"" + cropID + "\",\"variety_id\":\"" + varietyID + "\",\"planting_date\":\"2026-08-01\"}"
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/plot-1/crop-cycles", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/00000000-0000-0000-0000-000000000002/crop-cycles", strings.NewReader(body))
 	req = req.WithContext(auth.WithUserID(context.Background(), userID))
 	rec := httptest.NewRecorder()
 
@@ -62,7 +62,7 @@ func TestCreateCropCycleRejectsInvalidDate(t *testing.T) {
 	}
 	defer pool.Close()
 	h := NewHandler(nil, nil, nil, NewCropCycleService(pool))
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/plot-1/crop-cycles", strings.NewReader("{\"crop_id\":\"crop-1\",\"planting_date\":\"2026-02-30\"}"))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/00000000-0000-0000-0000-000000000002/crop-cycles", strings.NewReader("{\"crop_id\":\"00000000-0000-0000-0000-000000000003\",\"planting_date\":\"2026-02-30\"}"))
 	req = req.WithContext(auth.WithUserID(context.Background(), "user-1"))
 	rec := httptest.NewRecorder()
 
@@ -106,6 +106,56 @@ func TestCreateCropCycleReturnsCreatedForOwnedPlot(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), cycleID) {
 		t.Fatalf("response does not contain crop cycle id: %s", rec.Body.String())
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+
+func TestListCropCyclesRejectsMalformedPlotIDBeforeDatabaseCall(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	h := NewHandler(nil, nil, nil, NewCropCycleService(pool))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/plots/not-a-uuid/crop-cycles", nil)
+	req = req.WithContext(auth.WithUserID(context.Background(), "user-1"))
+	rec := httptest.NewRecorder()
+
+	h.ListCropCycles(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "plot id must be a valid UUID") {
+		t.Fatalf("response does not explain invalid plot id: %s", rec.Body.String())
+	}
+	if err := pool.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateCropCycleRejectsMalformedPlotIDBeforeDatabaseCall(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	h := NewHandler(nil, nil, nil, NewCropCycleService(pool))
+	body := "{\"crop_id\":\"00000000-0000-0000-0000-000000000003\",\"planting_date\":\"2026-08-01\"}"
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plots/not-a-uuid/crop-cycles", strings.NewReader(body))
+	req = req.WithContext(auth.WithUserID(context.Background(), "user-1"))
+	rec := httptest.NewRecorder()
+
+	h.CreateCropCycle(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "plot id must be a valid UUID") {
+		t.Fatalf("response does not explain invalid plot id: %s", rec.Body.String())
 	}
 	if err := pool.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

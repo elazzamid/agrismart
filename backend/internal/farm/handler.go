@@ -145,6 +145,10 @@ func (h *Handler) ListCropCycles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "plot id is required")
 		return
 	}
+	if !isValidCropCycleUUID(plotID) {
+		writeError(w, http.StatusBadRequest, "plot id must be a valid UUID")
+		return
+	}
 	cycles, err := h.cycleService.List(r.Context(), farmerID, plotID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
@@ -164,6 +168,10 @@ func (h *Handler) CreateCropCycle(w http.ResponseWriter, r *http.Request) {
 	plotID = strings.TrimSuffix(plotID, "/crop-cycles")
 	if plotID == "" || plotID == r.URL.Path {
 		writeError(w, http.StatusBadRequest, "plot id is required")
+		return
+	}
+	if !isValidCropCycleUUID(plotID) {
+		writeError(w, http.StatusBadRequest, "plot id must be a valid UUID")
 		return
 	}
 	var in CreateCropCycleInput
