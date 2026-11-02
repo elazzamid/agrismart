@@ -9,14 +9,17 @@ fi
   echo "PostgreSQL Compose service is not running; start it with 'docker compose up -d postgres' or set DB_CONTAINER." >&2
   exit 1
 }
-DB_USER="${POSTGRES_USER:-agrismart}"
-DB_NAME="${POSTGRES_DB:-agrismart}"
+# Read credentials from the running container so Compose's .env values are
+# honored even when they were not exported into the caller's shell.
+db_psql() {
+  docker exec -i "$DB_CONTAINER" sh -ec 'exec psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"' sh "$@"
+}
 
 printf '%s\n' "Checking PostgreSQL container: $DB_CONTAINER"
-docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME"
+docker exec "$DB_CONTAINER" sh -ec 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 
 printf '%s\n' "Checking required tables..."
-TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name IN ('users','farmer_profiles','farms','farm_plots','crops','crop_varieties','crop_growth_stages','crop_cycles','farm_activities','farm_inputs','farm_expenses','farm_harvests');")"
+TABLE_COUNT="$(db_psql -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name IN ('users','farmer_profiles','farms','farm_plots','crops','crop_varieties','crop_growth_stages','crop_cycles','farm_activities','farm_inputs','farm_expenses','farm_harvests');")"
 
 [ "$TABLE_COUNT" = "12" ] || {
   echo "Expected 12 required tables, found $TABLE_COUNT" >&2
@@ -24,7 +27,7 @@ TABLE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -
 }
 
 printf '%s\n' "Checking seeded MVP crop catalog..."
-MVP_CROP_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(DISTINCT code) FROM crops WHERE is_active = TRUE AND code IN ('cabai','padi','jagung');")"
+MVP_CROP_COUNT="$(db_psql -Atc "SELECT count(DISTINCT code) FROM crops WHERE is_active = TRUE AND code IN ('cabai','padi','jagung');")"
 
 [ "$MVP_CROP_COUNT" = "3" ] || {
   echo "Expected 3 active MVP crops (cabai, padi, jagung), found $MVP_CROP_COUNT" >&2
@@ -32,7 +35,7 @@ MVP_CROP_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME
 }
 
 printf '%s\n' "Checking seeded MVP crop varieties..."
-MVP_VARIETY_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM (VALUES ('padi','IR64'),('padi','Inpari 32'),('jagung','Bisi 18'),('jagung','NK 212'),('cabai','Cabai Merah Keriting'),('cabai','Cabai Rawit')) AS expected(code,name) JOIN crops c ON c.code = expected.code AND c.is_active = TRUE JOIN crop_varieties v ON v.crop_id = c.id AND v.name = expected.name AND v.is_active = TRUE;")"
+MVP_VARIETY_COUNT="$(db_psql -Atc "SELECT count(*) FROM (VALUES ('padi','IR64'),('padi','Inpari 32'),('jagung','Bisi 18'),('jagung','NK 212'),('cabai','Cabai Merah Keriting'),('cabai','Cabai Rawit')) AS expected(code,name) JOIN crops c ON c.code = expected.code AND c.is_active = TRUE JOIN crop_varieties v ON v.crop_id = c.id AND v.name = expected.name AND v.is_active = TRUE;")"
 
 [ "$MVP_VARIETY_COUNT" = "6" ] || {
   echo "Expected 6 seeded MVP crop varieties, found $MVP_VARIETY_COUNT" >&2
@@ -40,7 +43,7 @@ MVP_VARIETY_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_N
 }
 
 printf '%s\n' "Checking seeded MVP crop growth stages..."
-MVP_GROWTH_STAGE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT count(*) FROM (VALUES ('padi','Persemaian',1),('padi','Vegetatif',2),('padi','Generatif',3),('padi','Pematangan',4),('jagung','Perkecambahan',1),('jagung','Vegetatif',2),('jagung','Pembungaan',3),('jagung','Pengisian Biji',4),('cabai','Persemaian',1),('cabai','Vegetatif',2),('cabai','Berbunga',3),('cabai','Pembuahan',4),('cabai','Panen',5)) AS expected(code,name,sequence_no) JOIN crops c ON c.code = expected.code AND c.is_active = TRUE JOIN crop_growth_stages s ON s.crop_id = c.id AND s.name = expected.name AND s.sequence_no = expected.sequence_no;")"
+MVP_GROWTH_STAGE_COUNT="$(db_psql -Atc "SELECT count(*) FROM (VALUES ('padi','Persemaian',1),('padi','Vegetatif',2),('padi','Generatif',3),('padi','Pematangan',4),('jagung','Perkecambahan',1),('jagung','Vegetatif',2),('jagung','Pembungaan',3),('jagung','Pengisian Biji',4),('cabai','Persemaian',1),('cabai','Vegetatif',2),('cabai','Berbunga',3),('cabai','Pembuahan',4),('cabai','Panen',5)) AS expected(code,name,sequence_no) JOIN crops c ON c.code = expected.code AND c.is_active = TRUE JOIN crop_growth_stages s ON s.crop_id = c.id AND s.name = expected.name AND s.sequence_no = expected.sequence_no;")"
 
 [ "$MVP_GROWTH_STAGE_COUNT" = "13" ] || {
   echo "Expected 13 seeded MVP crop growth stages, found $MVP_GROWTH_STAGE_COUNT" >&2
@@ -48,7 +51,7 @@ MVP_GROWTH_STAGE_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "
 }
 
 printf '%s\n' "Checking required constraints and indexes..."
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" sh -ec 'exec psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' <<'SQL'
 DO $verify$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check') THEN
