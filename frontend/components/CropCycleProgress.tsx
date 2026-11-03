@@ -3,16 +3,44 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listCropGrowthStages, type CropGrowthStage } from "@/lib/api";
 import { findGrowthStage, getCropAgeDays } from "@/lib/crop-progress.mjs";
+import { millisecondsUntilNextLocalMidnight } from "@/lib/local-calendar-clock.mjs";
 
 type Props = { cropId: string; plantingDate: string; status: string };
 
 export default function CropCycleProgress({ cropId, plantingDate, status }: Props) {
-  const ageDays = getCropAgeDays(plantingDate);
+  const [today, setToday] = useState(() => new Date());
+  const ageDays = getCropAgeDays(plantingDate, today);
   const [stages, setStages] = useState<CropGrowthStage[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const mountedRef = useRef(false);
   const requestId = useRef(0);
+
+  useEffect(() => {
+    if (status !== "active") return;
+
+    let timer: number | undefined;
+    let disposed = false;
+    const refreshLocalDate = () => {
+      if (disposed) return;
+      const now = new Date();
+      setToday(now);
+      if (timer !== undefined) window.clearTimeout(timer);
+      const delay = millisecondsUntilNextLocalMidnight(now);
+      if (delay !== null) timer = window.setTimeout(refreshLocalDate, delay);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshLocalDate();
+    };
+
+    refreshLocalDate();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [status]);
 
   const load = useCallback(async () => {
     const currentRequest = ++requestId.current;
