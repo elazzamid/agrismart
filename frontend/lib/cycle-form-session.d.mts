@@ -1,1 +1,1 @@
-export function shouldApplyCycleFormResult(submittedSessionId: number, currentSessionId: number): boolean;
+export function isCurrentCycleFormSession(submittedSessionId: number, currentSessionId: number): boolean;

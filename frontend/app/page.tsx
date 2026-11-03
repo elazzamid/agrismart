@@ -25,7 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
-import { shouldApplyCycleFormResult } from "@/lib/cycle-form-session.mjs";
+import { isCurrentCycleFormSession } from "@/lib/cycle-form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -314,7 +314,9 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
       await refresh();
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Siklus tanam belum berhasil disimpan.");
+      if (isCurrentCycleFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
+        setError(err instanceof Error ? err.message : "Siklus tanam belum berhasil disimpan.");
+      }
     } finally {
       if (mountedRef.current) setSavingCycle(false);
     }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { findGrowthStage, getCropAgeDays, shouldLoadGrowthStageCatalog } from "./crop-progress.mjs";
-import { shouldApplyCycleFormResult } from "./cycle-form-session.mjs";
+import { isCurrentCycleFormSession } from "./cycle-form-session.mjs";
 
 const localDate = (year, month, day) => new Date(year, month - 1, day, 12);
 
@@ -66,8 +66,13 @@ test("overlapping, unbounded, and invalid ranges are not presented as a stage", 
 });
 
 test("late crop-cycle submissions only reset the form session that submitted them", () => {
-  assert.equal(shouldApplyCycleFormResult(4, 4), true);
-  assert.equal(shouldApplyCycleFormResult(4, 5), false);
-  assert.equal(shouldApplyCycleFormResult(Number.NaN, 5), false);
-  assert.equal(shouldApplyCycleFormResult(4, Number.NaN), false);
+  assert.equal(isCurrentCycleFormSession(4, 4), true);
+  assert.equal(isCurrentCycleFormSession(4, 5), false);
+  assert.equal(isCurrentCycleFormSession(Number.NaN, 5), false);
+  assert.equal(isCurrentCycleFormSession(4, Number.NaN), false);
+});
+
+test("late crop-cycle failures are ignored after the form session changes", () => {
+  assert.equal(isCurrentCycleFormSession(7, 7), true);
+  assert.equal(isCurrentCycleFormSession(7, 8), false);
 });
