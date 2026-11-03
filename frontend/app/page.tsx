@@ -25,6 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
+import { shouldApplyCycleFormResult } from "@/lib/cycle-form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -149,6 +150,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
   const [plotArea, setPlotArea] = useState("");
   const [savingPlot, setSavingPlot] = useState(false);
   const [cycleFormPlot, setCycleFormPlot] = useState<string | null>(null);
+  const cycleFormSessionId = useRef(0);
   const [recordCycleId, setRecordCycleId] = useState<string | null>(null);
   const [cropId, setCropId] = useState("");
   const [varietyId, setVarietyId] = useState("");
@@ -290,20 +292,24 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
       setError("Katalog varietas belum berhasil dimuat. Coba muat ulang sebelum membuat siklus.");
       return;
     }
+    const submittedFormSessionId = cycleFormSessionId.current;
     setSavingCycle(true);
     setError("");
     setNotice("");
     try {
       await createCropCycle(plotId, { crop_id: cropId, variety_id: varietyId || null, planting_date: plantingDate });
       if (!mountedRef.current) return;
-      setCycleFormPlot(null);
-      setCropId("");
-      setVarietyId("");
-      setVarieties([]);
-      setVarietiesLoading(false);
-      setVarietiesLoadFailed(false);
-      varietyRequestId.current += 1;
-      setPlantingDate("");
+      if (shouldApplyCycleFormResult(submittedFormSessionId, cycleFormSessionId.current)) {
+        cycleFormSessionId.current += 1;
+        setCycleFormPlot(null);
+        setCropId("");
+        setVarietyId("");
+        setVarieties([]);
+        setVarietiesLoading(false);
+        setVarietiesLoadFailed(false);
+        varietyRequestId.current += 1;
+        setPlantingDate("");
+      }
       setNotice("Siklus tanam berhasil ditambahkan.");
       await refresh();
     } catch (err) {
@@ -327,8 +333,8 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
       {cropsLoadFailed && <div className="error-banner" role="alert"><span>Katalog tanaman belum dapat dimuat. Siklus tanam tidak dapat dibuat sampai katalog berhasil diperbarui.</span><button className="text-button" onClick={() => void refresh()}>Coba lagi</button></div>}
       {showPlotForm && <form className="farm-form" onSubmit={submitPlot}><div className="form-title"><div><strong>Petak baru</strong><p>Gunakan nama dan luas petak sesuai catatan Anda.</p></div><span className="form-step">PETAK</span></div><div className="form-grid"><Field label="Nama petak" placeholder="Contoh: Petak Utara" value={plotName} onChange={e => setPlotName(e.target.value)} required maxLength={120} /><Field label="Luas (m²)" type="number" inputMode="decimal" min="0.01" step="any" placeholder="Contoh: 250" value={plotArea} onChange={e => setPlotArea(e.target.value)} required /></div><div className="form-actions"><button type="button" className="button ghost" onClick={() => setShowPlotForm(false)}>Batal</button><button className="button primary" disabled={savingPlot}>{savingPlot ? "Menyimpan…" : "Simpan petak ↗"}</button></div></form>}
       <section className="section-heading"><div><span className="eyebrow muted">PEMBAGIAN LAHAN</span><h2>Petak kebun <span className="count">{plots.length}</span></h2></div></section>
-      {loading && !plotsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat petak dan siklus tanam…</div> : !plotsLoaded ? null : plots.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h3>Belum ada petak</h3><p>Buat petak pertama untuk mulai mencatat tanaman dan tanggal tanam.</p><button className="button primary" onClick={() => setShowPlotForm(true)}>Tambah petak pertama ↗</button></div> : <div className="plot-list">{plots.map((plot, index) => <article className="plot-card" key={plot.id}><div className="plot-card-head"><div className="plot-index">{String(index + 1).padStart(2, "0")}</div><div className="plot-main"><h3>{plot.name}</h3><p>{plot.area_m2.toLocaleString("id-ID")} m² · Petak budidaya</p></div><button className="button outline small-button" onClick={() => { setCycleFormPlot(cycleFormPlot === plot.id ? null : plot.id); setCropId(""); setVarietyId(""); void loadVarieties(""); setPlantingDate(""); }}>{cycleFormPlot === plot.id ? "Batal" : "+ Siklus tanam"}</button></div>
-        {cycleFormPlot === plot.id && <form className="cycle-form" onSubmit={event => void submitCycle(event, plot.id)}><Field label="Tanggal tanam" type="date" value={plantingDate} onChange={e => setPlantingDate(e.target.value)} required /><label className="field"><span>Tanaman</span><select value={cropId} onChange={e => { setCropId(e.target.value); setVarietyId(""); void loadVarieties(e.target.value); }} required><option value="">Pilih tanaman</option>{crops.map(crop => <option key={crop.id} value={crop.id}>{crop.name}</option>)}</select></label>{cropId && (varietiesLoading ? <p className="inline-hint" role="status">Memuat pilihan varietas…</p> : varietiesLoadFailed ? <p className="inline-hint" role="alert">Varietas belum dapat dimuat. <button type="button" className="text-button" onClick={() => void loadVarieties(cropId)}>Coba lagi</button></p> : varieties.length === 0 ? <p className="inline-hint">Tidak ada varietas aktif untuk tanaman ini. Anda dapat melanjutkan tanpa varietas.</p> : <label className="field"><span>Varietas (opsional)</span><select value={varietyId} onChange={e => setVarietyId(e.target.value)}><option value="">Tanpa varietas spesifik</option>{varieties.map(variety => <option key={variety.id} value={variety.id}>{variety.name}</option>)}</select></label>)}<button className="button primary" disabled={savingCycle || crops.length === 0 || cropsLoadFailed || varietiesLoading || varietiesLoadFailed}>{savingCycle ? "Menyimpan…" : "Simpan siklus ↗"}</button>{cropsLoadFailed ? <p className="inline-hint">Katalog tanaman belum berhasil diperbarui. Coba muat ulang sebelum membuat siklus.</p> : crops.length === 0 && <p className="inline-hint">Katalog tanaman aktif belum tersedia.</p>}</form>}
+      {loading && !plotsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat petak dan siklus tanam…</div> : !plotsLoaded ? null : plots.length === 0 ? <div className="empty-state"><div className="empty-icon">▦</div><h3>Belum ada petak</h3><p>Buat petak pertama untuk mulai mencatat tanaman dan tanggal tanam.</p><button className="button primary" onClick={() => setShowPlotForm(true)}>Tambah petak pertama ↗</button></div> : <div className="plot-list">{plots.map((plot, index) => <article className="plot-card" key={plot.id}><div className="plot-card-head"><div className="plot-index">{String(index + 1).padStart(2, "0")}</div><div className="plot-main"><h3>{plot.name}</h3><p>{plot.area_m2.toLocaleString("id-ID")} m² · Petak budidaya</p></div><button className="button outline small-button" onClick={() => { cycleFormSessionId.current += 1; setCycleFormPlot(cycleFormPlot === plot.id ? null : plot.id); setCropId(""); setVarietyId(""); void loadVarieties(""); setPlantingDate(""); }}>{cycleFormPlot === plot.id ? "Batal" : "+ Siklus tanam"}</button></div>
+        {cycleFormPlot === plot.id && <form className="cycle-form" onSubmit={event => void submitCycle(event, plot.id)}><Field label="Tanggal tanam" type="date" value={plantingDate} onChange={e => { cycleFormSessionId.current += 1; setPlantingDate(e.target.value); }} required /><label className="field"><span>Tanaman</span><select value={cropId} onChange={e => { cycleFormSessionId.current += 1; setCropId(e.target.value); setVarietyId(""); void loadVarieties(e.target.value); }} required><option value="">Pilih tanaman</option>{crops.map(crop => <option key={crop.id} value={crop.id}>{crop.name}</option>)}</select></label>{cropId && (varietiesLoading ? <p className="inline-hint" role="status">Memuat pilihan varietas…</p> : varietiesLoadFailed ? <p className="inline-hint" role="alert">Varietas belum dapat dimuat. <button type="button" className="text-button" onClick={() => void loadVarieties(cropId)}>Coba lagi</button></p> : varieties.length === 0 ? <p className="inline-hint">Tidak ada varietas aktif untuk tanaman ini. Anda dapat melanjutkan tanpa varietas.</p> : <label className="field"><span>Varietas (opsional)</span><select value={varietyId} onChange={e => { cycleFormSessionId.current += 1; setVarietyId(e.target.value); }}><option value="">Tanpa varietas spesifik</option>{varieties.map(variety => <option key={variety.id} value={variety.id}>{variety.name}</option>)}</select></label>)}<button className="button primary" disabled={savingCycle || crops.length === 0 || cropsLoadFailed || varietiesLoading || varietiesLoadFailed}>{savingCycle ? "Menyimpan…" : "Simpan siklus ↗"}</button>{cropsLoadFailed ? <p className="inline-hint">Katalog tanaman belum berhasil diperbarui. Coba muat ulang sebelum membuat siklus.</p> : crops.length === 0 && <p className="inline-hint">Katalog tanaman aktif belum tersedia.</p>}</form>}
         <div className="cycle-list">{cycleLoadPending.includes(plot.id) && !cycleLoadedIds.includes(plot.id) ? <p className="no-cycle" role="status">Memuat siklus tanam…</p> : cycleLoadErrors.includes(plot.id) && !cycleLoadedIds.includes(plot.id) ? <p className="no-cycle" role="status">Siklus tanam belum berhasil dimuat. <button type="button" className="text-button" onClick={() => void retryCycles(plot.id)}>Coba lagi</button></p> : <>{cycleLoadPending.includes(plot.id) && <p className="no-cycle" role="status">Memuat pembaruan; menampilkan siklus terakhir yang berhasil dimuat.</p>}{cycleLoadErrors.includes(plot.id) && <p className="no-cycle" role="status">Pembaruan gagal; menampilkan siklus terakhir yang berhasil dimuat. <button type="button" className="text-button" onClick={() => void retryCycles(plot.id)}>Coba lagi</button></p>}{cycleLoadedIds.includes(plot.id) && (cycles[plot.id] || []).length === 0 ? <p className="no-cycle">Belum ada siklus tanam pada petak ini.</p> : (cycles[plot.id] || []).map(cycle => <div className="cycle-entry" key={cycle.id}><div className="cycle-row"><span className="cycle-plant-icon">✳</span><div className="cycle-copy"><strong>{crops.find(crop => crop.id === cycle.crop_id)?.name || "Tanaman"}</strong><span>Mulai tanam {new Date(cycle.planting_date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span></div><span className="cycle-status">{cycle.status}</span><button type="button" className="text-button cycle-record-toggle" aria-expanded={recordCycleId === cycle.id} onClick={() => setRecordCycleId(recordCycleId === cycle.id ? null : cycle.id)}>{recordCycleId === cycle.id ? "Tutup catatan" : "Catatan"}</button></div><CropCycleProgress cropId={cycle.crop_id} plantingDate={cycle.planting_date} status={cycle.status} />{recordCycleId === cycle.id && <CycleRecords cycleId={cycle.id} />}</div>)}</>}</div>
       </article>)}</div>}
       <footer className="dashboard-footer"><span>AgriSmart <span>·</span> {farm.name}</span><span>Petak dan siklus tanam mengikuti data API akun Anda.</span></footer>

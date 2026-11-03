@@ -98,6 +98,7 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 48. Keep an active crop cycle open across local midnight and verify its age and indicative stage are recalculated for the new local calendar day. Background the tab across midnight, return to it, and verify the age refreshes without requiring a manual reload.
 49. Verify the growth-stage catalog is not fetched again merely because the local crop age advances at midnight; changing crop identity or transitioning into an eligible active cycle must still load the corresponding catalog.
 50. Open an active crop cycle in a browser whose timezone is ahead of UTC during the local-date/UTC-date crossover (for example, 00:00–07:59 in Asia/Makassar). Verify the initial render does not show a hydration warning or a one-day age discrepancy, and that the displayed age matches the browser’s local calendar date after hydration.
+51. Start saving a crop cycle in one plot, then switch to or edit another cycle form before the first POST resolves. Verify the delayed success cannot close or reset the newer form; verify a failure remains visible and the user-entered values are preserved.
 
 ### Scope and limitations
 

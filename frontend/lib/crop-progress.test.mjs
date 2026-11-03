@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { findGrowthStage, getCropAgeDays, shouldLoadGrowthStageCatalog } from "./crop-progress.mjs";
+import { shouldApplyCycleFormResult } from "./cycle-form-session.mjs";
 
 const localDate = (year, month, day) => new Date(year, month - 1, day, 12);
 
@@ -62,4 +63,11 @@ test("overlapping, unbounded, and invalid ranges are not presented as a stage", 
     { name: "Boundary B", sequence_no: 2, min_days: 8, max_days: 20 },
   ], 8), null);
   assert.equal(findGrowthStage([{ name: "Invalid", sequence_no: 1, min_days: 9, max_days: 2 }], 4), null);
+});
+
+test("late crop-cycle submissions only reset the form session that submitted them", () => {
+  assert.equal(shouldApplyCycleFormResult(4, 4), true);
+  assert.equal(shouldApplyCycleFormResult(4, 5), false);
+  assert.equal(shouldApplyCycleFormResult(Number.NaN, 5), false);
+  assert.equal(shouldApplyCycleFormResult(4, Number.NaN), false);
 });
