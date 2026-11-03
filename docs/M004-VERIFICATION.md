@@ -16,8 +16,13 @@
 - Crop-cycle journal shows activity/input/harvest counts and total recorded expenses, with Indonesian labels for common activity and expense categories.
 - Journal panels load only when opened, avoiding unnecessary requests for every crop cycle.
 - Explicit loading, empty, success, and error states.
-- Within the selected farm workspace, the plot empty state appears only after the plot-list API succeeds; failed plot refreshes preserve the last successfully loaded plot list. Failed journal requests remain distinguishable from a genuinely empty journal.
 - Mobile “Tambah kebun” navigation returns from a selected farm workspace to the dashboard before opening the farm form.
+- Responsive desktop and mobile layouts; form labels, keyboard focus styles, and reduced-motion support.
+- Same-origin Next.js rewrite proxies `/api/v1/*` to the configured Go API origin.
+
+## Slice M004.4 — Reliability and asynchronous state isolation
+
+- Within the selected farm workspace, the plot empty state appears only after the plot-list API succeeds; failed plot refreshes preserve the last successfully loaded plot list. Failed journal requests remain distinguishable from a genuinely empty journal.
 - Plot and crop data remain visible when an individual plot's crop-cycle request fails; the failed cycle list is labelled and has a per-plot retry action.
 - A plot shows a cycle-loading state while its first cycle request is pending, not a premature empty-cycle message; successful empty results are tracked separately from never-loaded results.
 - A failed initial plot-list request does not display the “Belum ada petak” empty state; after a later refresh failure, existing plots remain visible and their cycle lists are independently retried.
@@ -33,9 +38,6 @@
 - Starting a newer workspace refresh invalidates older per-plot cycle requests; unmounting the workspace invalidates all outstanding cycle requests.
 - Dashboard farm-list refreshes ignore stale responses, preserve the latest request's loading state, and invalidate outstanding requests when the dashboard unmounts.
 - Crop-cycle creation responses are scoped to the form session that initiated them; delayed successes cannot reset newer forms and delayed failures cannot replace newer-session feedback.
-- Responsive desktop and mobile layouts; form labels, keyboard focus styles, and reduced-motion support.
-- Same-origin Next.js rewrite proxies `/api/v1/*` to the configured Go API origin.
-
 ### Automated checks
 
 CI runs:
