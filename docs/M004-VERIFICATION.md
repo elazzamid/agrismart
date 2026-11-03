@@ -43,7 +43,7 @@
 
 CI runs:
 
-- `npm test` (Node built-in tests for date-only age, unambiguous stage-range matching, and stale crop-cycle/journal form-session results)
+- `npm test` (Node built-in tests for date-only age, unambiguous stage-range matching, and stale crop-cycle, journal, farm, and plot form-session results)
 - `npm run typecheck`
 - `npm run build`
 - existing Go tests/build and PostgreSQL migration smoke test
