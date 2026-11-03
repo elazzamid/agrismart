@@ -94,10 +94,12 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 44. For an active cycle with exactly one matching catalog range, verify the indicative sample-stage label appears; gaps, overlapping or open-ended ranges, invalid bounds, and missing ranges must not be guessed.
 45. Simulate a growth-stage catalog failure; verify age remains visible, retry is available, and no fallback or fabricated stage is shown.
 46. Verify the UI labels stage ranges as sample metadata and does not present them as cultivation advice, plant-condition assessment, or harvest prediction.
+47. Start an authenticated request with token A, replace the stored session with token B before the request returns HTTP 401, and verify the stale response neither clears token B nor dispatches `agrismart:unauthorized`. Also verify a 401 from login/registration (a request without a session token) cannot invalidate a stored session.
 
 ### Scope and limitations
 
 - Active crop cycles display elapsed calendar days from the planting date and an indicative label only when exactly one growth-stage catalog range matches. Planned, harvested, cancelled, unknown-status, and future-dated cycles do not receive an active-stage label. The seeded ranges are sample metadata, not agronomic recommendations; the UI explicitly disclaims condition assessment and harvest prediction. Browser end-to-end automation and manual browser verification remain outstanding. The date and range-matching helper is covered by `npm test` using Node’s built-in test runner.
+- A 401 response invalidates authentication only when the request used the currently stored non-empty session token; delayed responses from a prior session and unauthenticated login/registration failures cannot clear a newer session.
 - The backend issues bearer tokens; `sessionStorage` is tab-scoped but JavaScript-accessible and is not equivalent to an HttpOnly cookie.
 - No production deployment, VPS change, PR merge, or database mutation was performed.
 - The feature branch is based on `feature/m003-farm-operations` because the dashboard depends on the farm API; M003 and M004 are not merged into `main`.

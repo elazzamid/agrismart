@@ -1,5 +1,7 @@
 "use client";
 
+import { shouldInvalidateSession } from "./auth-session.mjs";
+
 export type User = { id: string; email: string; role: string };
 export type Farm = {
   id: string;
@@ -42,7 +44,7 @@ async function request<T>(path: string, init: RequestInit = {}, token = getToken
     } catch {
       // Keep the safe status-based message when the response isn't JSON.
     }
-    if (response.status === 401) {
+    if (response.status === 401 && shouldInvalidateSession(token, getToken())) {
       clearToken();
       if (typeof window !== "undefined") window.dispatchEvent(new Event("agrismart:unauthorized"));
     }
