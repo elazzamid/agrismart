@@ -23,3 +23,19 @@ test("invalid or unsafe session identifiers are rejected", () => {
   assert.equal(isCurrentFormSession(4, Number.NaN), false);
   assert.equal(isCurrentFormSession(Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 1), false);
 });
+
+test("the current farm form accepts its own save result", () => {
+  assert.equal(isCurrentFormSession(9, 9), true);
+});
+
+test("a delayed farm save cannot reset or publish success feedback to a newer form", () => {
+  assert.equal(isCurrentFormSession(9, 10), false);
+});
+
+test("the current plot form accepts its own save result", () => {
+  assert.equal(isCurrentFormSession(11, 11), true);
+});
+
+test("a delayed plot save cannot replace newer-form feedback", () => {
+  assert.equal(isCurrentFormSession(11, 12), false);
+});
