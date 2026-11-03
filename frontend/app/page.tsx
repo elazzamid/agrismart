@@ -309,8 +309,8 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
         setVarietiesLoadFailed(false);
         varietyRequestId.current += 1;
         setPlantingDate("");
+        setNotice("Siklus tanam berhasil ditambahkan.");
       }
-      setNotice("Siklus tanam berhasil ditambahkan.");
       await refresh();
     } catch (err) {
       if (!mountedRef.current) return;

@@ -6,8 +6,12 @@ test("the current journal form accepts its own save result", () => {
   assert.equal(isCurrentFormSession(4, 4), true);
 });
 
-test("a delayed journal success cannot reset a newer form", () => {
+test("a delayed journal success cannot reset or publish success feedback to a newer form", () => {
   assert.equal(isCurrentFormSession(4, 5), false);
+});
+
+test("a delayed crop-cycle success cannot publish success feedback to a newer form", () => {
+  assert.equal(isCurrentFormSession(6, 7), false);
 });
 
 test("a delayed journal failure cannot replace newer-form feedback", () => {

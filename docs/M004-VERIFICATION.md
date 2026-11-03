@@ -37,7 +37,7 @@
 - Overlapping farm-workspace refreshes cannot let an older plot-list or crop-catalog response overwrite a newer refresh or clear its loading state; a per-plot retry started while refresh is pending must not be superseded by that refresh.
 - Starting a newer workspace refresh invalidates older per-plot cycle requests; unmounting the workspace invalidates all outstanding cycle requests.
 - Dashboard farm-list refreshes ignore stale responses, preserve the latest request's loading state, and invalidate outstanding requests when the dashboard unmounts.
-- Crop-cycle creation responses are scoped to the form session that initiated them; delayed successes cannot reset newer forms and delayed failures cannot replace newer-session feedback.
+- Crop-cycle and journal save responses are scoped to the form session that initiated them; delayed successes cannot reset newer forms or publish stale success notices, and delayed failures cannot replace newer-session feedback.
 ### Automated checks
 
 CI runs:
@@ -101,9 +101,10 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 48. Keep an active crop cycle open across local midnight and verify its age and indicative stage are recalculated for the new local calendar day. Background the tab across midnight, return to it, and verify the age refreshes without requiring a manual reload.
 49. Verify the growth-stage catalog is not fetched again merely because the local crop age advances at midnight; changing crop identity or transitioning into an eligible active cycle must still load the corresponding catalog.
 50. Open an active crop cycle in a browser whose timezone is ahead of UTC during the local-date/UTC-date crossover (for example, 00:00–07:59 in Asia/Makassar). Verify the initial render does not show a hydration warning or a one-day age discrepancy, and that the displayed age matches the browser’s local calendar date after hydration.
-51. Start saving a crop cycle in one plot, then switch to or edit another cycle form before the first POST resolves. Verify the delayed success cannot close or reset the newer form; verify a failure remains visible and the user-entered values are preserved.
+51. Start saving a crop cycle in one plot, then switch to or edit another cycle form before the first POST resolves. Verify the delayed success cannot close or reset the newer form or display a stale success notice; verify a failure remains visible and the user-entered values are preserved.
 52. Start a crop-cycle save that will fail, then switch to or edit a newer cycle form before the rejection resolves. Verify the stale failure does not overwrite feedback for the newer form; if the submitted form remains current, verify the failure is still shown and its entered values are preserved.
-53. Start a journal save, then switch journal category, close/reopen the form, or edit another journal form before the POST resolves. Verify delayed success cannot close or reset the newer form and delayed failure cannot replace its feedback; when the submitted form remains current, verify normal success reset or recoverable error behavior.
+53. Start a journal save, then switch journal category, close/reopen the form, or edit another journal form before the POST resolves. Verify delayed success cannot close or reset the newer form or display a stale success notice, and delayed failure cannot replace its feedback; when the submitted form remains current, verify normal success reset or recoverable error behavior.
+54. For both crop-cycle and journal forms, complete an older save successfully after the user has switched to or edited a newer form. Verify the newer form remains open with its entered values and no success notice from the older request appears; verify a success notice still appears when the submitted form remains current.
 
 ### Scope and limitations
 

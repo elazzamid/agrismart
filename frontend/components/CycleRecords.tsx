@@ -105,8 +105,8 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
       if (isCurrentFormSession(submittedFormSessionId, formSessionId.current)) {
         formSessionId.current += 1;
         setShowForm(false); setName(""); setQuantity(""); setAmount(""); setGrade(""); setNotes("");
+        setNotice("Catatan berhasil disimpan.");
       }
-      setNotice("Catatan berhasil disimpan.");
       await refresh();
     } catch (err) {
       if (!mountedRef.current) return;
