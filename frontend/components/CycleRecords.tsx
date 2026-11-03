@@ -6,6 +6,7 @@ import {
   FarmActivity, FarmExpense, FarmHarvest, FarmInput,
   listActivities, listExpenses, listHarvests, listInputs,
 } from "@/lib/api";
+import { isCurrentFormSession } from "@/lib/form-session.mjs";
 
 type Kind = "activity" | "input" | "expense" | "harvest";
 type RecordRow = FarmActivity | FarmInput | FarmExpense | FarmHarvest;
@@ -36,6 +37,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   const [loadError, setLoadError] = useState("");
   const mountedRef = useRef(false);
   const refreshRequestId = useRef(0);
+  const formSessionId = useRef(0);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
@@ -76,6 +78,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
   }, []);
 
   function changeKind(next: Kind) {
+    formSessionId.current += 1;
     setKind(next);
     setShowForm(false);
     setError("");
@@ -86,6 +89,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedFormSessionId = formSessionId.current;
     setSaving(true); setError(""); setNotice("");
     try {
       if (kind === "activity") {
@@ -98,12 +102,17 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
         await createHarvest(cycleId, { quantity: Number(quantity), unit: unit.trim(), harvest_date: date, quality_grade: grade.trim(), notes });
       }
       if (!mountedRef.current) return;
-      setShowForm(false); setName(""); setQuantity(""); setAmount(""); setGrade(""); setNotes("");
+      if (isCurrentFormSession(submittedFormSessionId, formSessionId.current)) {
+        formSessionId.current += 1;
+        setShowForm(false); setName(""); setQuantity(""); setAmount(""); setGrade(""); setNotes("");
+      }
       setNotice("Catatan berhasil disimpan.");
       await refresh();
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Catatan belum berhasil disimpan.");
+      if (isCurrentFormSession(submittedFormSessionId, formSessionId.current)) {
+        setError(err instanceof Error ? err.message : "Catatan belum berhasil disimpan.");
+      }
     } finally {
       if (mountedRef.current) setSaving(false);
     }
@@ -118,7 +127,7 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
     { label: "Total biaya", value: loadedSuccessfully ? money(totalExpenses) : "—" },
   ];
   return <section className="records-panel">
-    <div className="records-head"><div><span className="eyebrow muted">JURNAL BUDIDAYA</span><h4>Catatan siklus</h4></div><button type="button" className="button outline small-button" onClick={() => setShowForm(v => !v)}>{showForm ? "Tutup" : "+ Catat"}</button></div>
+    <div className="records-head"><div><span className="eyebrow muted">JURNAL BUDIDAYA</span><h4>Catatan siklus</h4></div><button type="button" className="button outline small-button" onClick={() => { formSessionId.current += 1; setShowForm(v => !v); }}>{showForm ? "Tutup" : "+ Catat"}</button></div>
     <div className="journal-summary">{summary.map(item => <div className="journal-metric" key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}</div>
     <div className="record-tabs" role="tablist" aria-label="Jenis catatan">
       {(Object.keys(labels) as Kind[]).map(key => <button type="button" role="tab" aria-selected={kind === key} className={kind === key ? "record-tab active" : "record-tab"} key={key} onClick={() => changeKind(key)}>{labels[key]} <span>{loadedSuccessfully ? rows[key].length : "—"}</span></button>)}
@@ -127,14 +136,14 @@ export default function CycleRecords({ cycleId }: { cycleId: string }) {
     {loadError && <div className="form-error" role="alert"><span>{loadError}</span> <button type="button" className="text-button" onClick={() => void refresh()}>Coba lagi</button></div>}
     {error && <p className="form-error" role="alert">{error}</p>}
     {showForm && <form className="record-form" onSubmit={submit}>
-      {kind === "activity" && <label className="field"><span>Jenis kegiatan</span><select value={type} onChange={e => setType(e.target.value)} required><option value="watering">Penyiraman</option><option value="weeding">Penyiangan</option><option value="pruning">Pemangkasan</option><option value="planting">Penanaman</option><option value="inspection">Pemeriksaan</option><option value="other">Lainnya</option></select></label>}
-      {kind === "input" && <><label className="field"><span>Jenis sarana</span><select value={type} onChange={e => setType(e.target.value)}><option value="fertilizer">Pupuk</option><option value="pesticide">Pestisida</option><option value="seed">Benih</option><option value="other">Lainnya</option></select></label><label className="field"><span>Nama produk</span><input value={name} onChange={e => setName(e.target.value)} required maxLength={120} /></label></>}
-      {kind === "expense" && <><label className="field"><span>Kategori biaya</span><select value={type} onChange={e => setType(e.target.value)}>{["seed","fertilizer","pesticide","labor","irrigation","equipment","transport","other"].map(v => <option key={v} value={v}>{({seed:"Benih",fertilizer:"Pupuk",pesticide:"Pestisida",labor:"Tenaga kerja",irrigation:"Irigasi",equipment:"Peralatan",transport:"Transportasi",other:"Lainnya"} as Record<string,string>)[v]}</option>)}</select></label><label className="field"><span>Deskripsi biaya</span><input value={name} onChange={e => setName(e.target.value)} required maxLength={160} /></label><label className="field"><span>Jumlah biaya (Rp)</span><input type="number" min="0.01" step="any" value={amount} onChange={e => setAmount(e.target.value)} required /></label></>}
-      {kind === "input" && <div className="record-grid"><label className="field"><span>Kuantitas</span><input type="number" min="0.001" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} required /></label><label className="field"><span>Satuan</span><input value={unit} onChange={e => setUnit(e.target.value)} required maxLength={20} /></label></div>}
-      {kind === "harvest" && <><div className="record-grid"><label className="field"><span>Jumlah panen</span><input type="number" min="0.001" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} required /></label><label className="field"><span>Satuan</span><input value={unit} onChange={e => setUnit(e.target.value)} required maxLength={20} /></label></div><label className="field"><span>Kualitas (opsional)</span><input value={grade} onChange={e => setGrade(e.target.value)} maxLength={40} placeholder="Contoh: Grade A" /></label></>}
-      <label className="field"><span>Tanggal {kind === "activity" ? "kegiatan" : kind === "input" ? "aplikasi" : kind === "expense" ? "biaya" : "panen"}</span><input type="date" value={date} onChange={e => setDate(e.target.value)} required /></label>
-      <label className="field"><span>Catatan (opsional)</span><textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={2000} rows={2} /></label>
-      <div className="form-actions"><button type="button" className="button ghost" onClick={() => setShowForm(false)}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan catatan ↗"}</button></div>
+      {kind === "activity" && <label className="field"><span>Jenis kegiatan</span><select value={type} onChange={e => { formSessionId.current += 1; setType(e.target.value); }} required><option value="watering">Penyiraman</option><option value="weeding">Penyiangan</option><option value="pruning">Pemangkasan</option><option value="planting">Penanaman</option><option value="inspection">Pemeriksaan</option><option value="other">Lainnya</option></select></label>}
+      {kind === "input" && <><label className="field"><span>Jenis sarana</span><select value={type} onChange={e => { formSessionId.current += 1; setType(e.target.value); }}><option value="fertilizer">Pupuk</option><option value="pesticide">Pestisida</option><option value="seed">Benih</option><option value="other">Lainnya</option></select></label><label className="field"><span>Nama produk</span><input value={name} onChange={e => { formSessionId.current += 1; setName(e.target.value); }} required maxLength={120} /></label></>}
+      {kind === "expense" && <><label className="field"><span>Kategori biaya</span><select value={type} onChange={e => { formSessionId.current += 1; setType(e.target.value); }}>{["seed","fertilizer","pesticide","labor","irrigation","equipment","transport","other"].map(v => <option key={v} value={v}>{({seed:"Benih",fertilizer:"Pupuk",pesticide:"Pestisida",labor:"Tenaga kerja",irrigation:"Irigasi",equipment:"Peralatan",transport:"Transportasi",other:"Lainnya"} as Record<string,string>)[v]}</option>)}</select></label><label className="field"><span>Deskripsi biaya</span><input value={name} onChange={e => { formSessionId.current += 1; setName(e.target.value); }} required maxLength={160} /></label><label className="field"><span>Jumlah biaya (Rp)</span><input type="number" min="0.01" step="any" value={amount} onChange={e => { formSessionId.current += 1; setAmount(e.target.value); }} required /></label></>}
+      {kind === "input" && <div className="record-grid"><label className="field"><span>Kuantitas</span><input type="number" min="0.001" step="any" value={quantity} onChange={e => { formSessionId.current += 1; setQuantity(e.target.value); }} required /></label><label className="field"><span>Satuan</span><input value={unit} onChange={e => { formSessionId.current += 1; setUnit(e.target.value); }} required maxLength={20} /></label></div>}
+      {kind === "harvest" && <><div className="record-grid"><label className="field"><span>Jumlah panen</span><input type="number" min="0.001" step="any" value={quantity} onChange={e => { formSessionId.current += 1; setQuantity(e.target.value); }} required /></label><label className="field"><span>Satuan</span><input value={unit} onChange={e => { formSessionId.current += 1; setUnit(e.target.value); }} required maxLength={20} /></label></div><label className="field"><span>Kualitas (opsional)</span><input value={grade} onChange={e => { formSessionId.current += 1; setGrade(e.target.value); }} maxLength={40} placeholder="Contoh: Grade A" /></label></>}
+      <label className="field"><span>Tanggal {kind === "activity" ? "kegiatan" : kind === "input" ? "aplikasi" : kind === "expense" ? "biaya" : "panen"}</span><input type="date" value={date} onChange={e => { formSessionId.current += 1; setDate(e.target.value); }} required /></label>
+      <label className="field"><span>Catatan (opsional)</span><textarea value={notes} onChange={e => { formSessionId.current += 1; setNotes(e.target.value); }} maxLength={2000} rows={2} /></label>
+      <div className="form-actions"><button type="button" className="button ghost" onClick={() => { formSessionId.current += 1; setShowForm(false); }}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan catatan ↗"}</button></div>
       {kind === "input" && <p className="inline-hint">Catat penggunaan aktual; formulir ini tidak menghitung atau merekomendasikan dosis.</p>}
     </form>}
     {loading && loadedSuccessfully && <p className="no-cycle" role="status">Memuat pembaruan; menampilkan catatan terakhir yang berhasil dimuat.</p>}

@@ -40,7 +40,7 @@
 
 CI runs:
 
-- `npm test` (Node built-in tests for date-only age, unambiguous stage-range matching, and stale crop-cycle form-session results)
+- `npm test` (Node built-in tests for date-only age, unambiguous stage-range matching, and stale crop-cycle/journal form-session results)
 - `npm run typecheck`
 - `npm run build`
 - existing Go tests/build and PostgreSQL migration smoke test
@@ -101,6 +101,7 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 50. Open an active crop cycle in a browser whose timezone is ahead of UTC during the local-date/UTC-date crossover (for example, 00:00–07:59 in Asia/Makassar). Verify the initial render does not show a hydration warning or a one-day age discrepancy, and that the displayed age matches the browser’s local calendar date after hydration.
 51. Start saving a crop cycle in one plot, then switch to or edit another cycle form before the first POST resolves. Verify the delayed success cannot close or reset the newer form; verify a failure remains visible and the user-entered values are preserved.
 52. Start a crop-cycle save that will fail, then switch to or edit a newer cycle form before the rejection resolves. Verify the stale failure does not overwrite feedback for the newer form; if the submitted form remains current, verify the failure is still shown and its entered values are preserved.
+53. Start a journal save, then switch journal category, close/reopen the form, or edit another journal form before the POST resolves. Verify delayed success cannot close or reset the newer form and delayed failure cannot replace its feedback; when the submitted form remains current, verify normal success reset or recoverable error behavior.
 
 ### Scope and limitations
 

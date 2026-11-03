@@ -25,7 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
-import { isCurrentCycleFormSession } from "@/lib/cycle-form-session.mjs";
+import { isCurrentFormSession } from "@/lib/form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -299,7 +299,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     try {
       await createCropCycle(plotId, { crop_id: cropId, variety_id: varietyId || null, planting_date: plantingDate });
       if (!mountedRef.current) return;
-      if (isCurrentCycleFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
+      if (isCurrentFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
         cycleFormSessionId.current += 1;
         setCycleFormPlot(null);
         setCropId("");
@@ -314,7 +314,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
       await refresh();
     } catch (err) {
       if (!mountedRef.current) return;
-      if (isCurrentCycleFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
+      if (isCurrentFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
         setError(err instanceof Error ? err.message : "Siklus tanam belum berhasil disimpan.");
       }
     } finally {
