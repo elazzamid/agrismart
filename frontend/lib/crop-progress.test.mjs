@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findGrowthStage, getCropAgeDays } from "./crop-progress.mjs";
+import { findGrowthStage, getCropAgeDays, shouldLoadGrowthStageCatalog } from "./crop-progress.mjs";
 
 const localDate = (year, month, day) => new Date(year, month - 1, day, 12);
 
@@ -21,6 +21,17 @@ test("future and malformed planting dates do not produce an age", () => {
 
 test("leap-day planting dates are accepted when valid", () => {
   assert.equal(getCropAgeDays("2024-02-29", localDate(2024, 3, 1)), 1);
+});
+
+test("growth-stage catalog eligibility is stable while an active crop age advances", () => {
+  assert.equal(shouldLoadGrowthStageCatalog("active", 0), true);
+  assert.equal(shouldLoadGrowthStageCatalog("active", 1), true);
+  assert.equal(shouldLoadGrowthStageCatalog("active", 365), true);
+  assert.equal(shouldLoadGrowthStageCatalog("planned", 0), false);
+  assert.equal(shouldLoadGrowthStageCatalog("harvested", 1), false);
+  assert.equal(shouldLoadGrowthStageCatalog("cancelled", 1), false);
+  assert.equal(shouldLoadGrowthStageCatalog("active", null), false);
+  assert.equal(shouldLoadGrowthStageCatalog("active", -1), false);
 });
 
 test("growth-stage range boundaries are inclusive", () => {

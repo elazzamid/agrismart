@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listCropGrowthStages, type CropGrowthStage } from "@/lib/api";
-import { findGrowthStage, getCropAgeDays } from "@/lib/crop-progress.mjs";
+import { findGrowthStage, getCropAgeDays, shouldLoadGrowthStageCatalog } from "@/lib/crop-progress.mjs";
 import { millisecondsUntilNextLocalMidnight } from "@/lib/local-calendar-clock.mjs";
 
 type Props = { cropId: string; plantingDate: string; status: string };
@@ -10,6 +10,7 @@ type Props = { cropId: string; plantingDate: string; status: string };
 export default function CropCycleProgress({ cropId, plantingDate, status }: Props) {
   const [today, setToday] = useState(() => new Date());
   const ageDays = getCropAgeDays(plantingDate, today);
+  const shouldLoadStages = shouldLoadGrowthStageCatalog(status, ageDays);
   const [stages, setStages] = useState<CropGrowthStage[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -60,12 +61,12 @@ export default function CropCycleProgress({ cropId, plantingDate, status }: Prop
 
   useEffect(() => {
     mountedRef.current = true;
-    if (status === "active" && ageDays !== null) void load();
+    if (shouldLoadStages) void load();
     return () => {
       mountedRef.current = false;
       requestId.current += 1;
     };
-  }, [ageDays, load, status]);
+  }, [shouldLoadStages, load]);
 
   if (status === "planned") return <p className="inline-hint">Siklus direncanakan; umur tanaman belum dimulai.</p>;
   if (status === "harvested") return <p className="inline-hint">Siklus selesai dipanen.</p>;

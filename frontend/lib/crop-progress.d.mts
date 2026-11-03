@@ -6,4 +6,5 @@ export type CropGrowthStageRange = {
 };
 
 export function getCropAgeDays(plantingDate: string, today?: Date): number | null;
+export function shouldLoadGrowthStageCatalog(status: string, ageDays: number | null): boolean;
 export function findGrowthStage<T extends CropGrowthStageRange>(stages: T[], ageDays: number): T | null;

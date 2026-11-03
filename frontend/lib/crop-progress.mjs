@@ -27,6 +27,12 @@ export function getCropAgeDays(plantingDate, today = new Date()) {
   return elapsedDays < 0 ? null : elapsedDays;
 }
 
+// Catalog data is stable across calendar-day changes; reload only when a cycle
+// becomes eligible or its crop identity changes in the consuming component.
+export function shouldLoadGrowthStageCatalog(status, ageDays) {
+  return status === "active" && Number.isInteger(ageDays) && ageDays >= 0;
+}
+
 // Return a stage only when exactly one valid catalog range matches the age.
 // Overlapping or unbounded sample ranges are deliberately treated as ambiguous.
 export function findGrowthStage(stages, ageDays) {

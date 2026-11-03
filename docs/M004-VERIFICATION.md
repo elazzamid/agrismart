@@ -96,6 +96,7 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 46. Verify the UI labels stage ranges as sample metadata and does not present them as cultivation advice, plant-condition assessment, or harvest prediction.
 47. Start an authenticated request with token A, replace the stored session with token B before the request returns HTTP 401, and verify the stale response neither clears token B nor dispatches `agrismart:unauthorized`. Also verify a 401 from login/registration (a request without a session token) cannot invalidate a stored session.
 48. Keep an active crop cycle open across local midnight and verify its age and indicative stage are recalculated for the new local calendar day. Background the tab across midnight, return to it, and verify the age refreshes without requiring a manual reload.
+49. Verify the growth-stage catalog is not fetched again merely because the local crop age advances at midnight; changing crop identity or transitioning into an eligible active cycle must still load the corresponding catalog.
 
 ### Scope and limitations
 
