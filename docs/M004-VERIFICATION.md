@@ -38,6 +38,7 @@
 - Starting a newer workspace refresh invalidates older per-plot cycle requests; unmounting the workspace invalidates all outstanding cycle requests.
 - Dashboard farm-list refreshes ignore stale responses, preserve the latest request's loading state, and invalidate outstanding requests when the dashboard unmounts.
 - Crop-cycle and journal save responses are scoped to the form session that initiated them; delayed successes cannot reset newer forms or publish stale success notices, and delayed failures cannot replace newer-session feedback.
+- Farm and plot save responses are scoped to the form session that initiated them; delayed successes cannot reset newer forms or publish stale success notices, and delayed failures cannot replace newer-session feedback.
 ### Automated checks
 
 CI runs:
@@ -105,6 +106,8 @@ The authoritative result is the GitHub Actions run for the exact frontend branch
 52. Start a crop-cycle save that will fail, then switch to or edit a newer cycle form before the rejection resolves. Verify the stale failure does not overwrite feedback for the newer form; if the submitted form remains current, verify the failure is still shown and its entered values are preserved.
 53. Start a journal save, then switch journal category, close/reopen the form, or edit another journal form before the POST resolves. Verify delayed success cannot close or reset the newer form or display a stale success notice, and delayed failure cannot replace its feedback; when the submitted form remains current, verify normal success reset or recoverable error behavior.
 54. For both crop-cycle and journal forms, complete an older save successfully after the user has switched to or edited a newer form. Verify the newer form remains open with its entered values and no success notice from the older request appears; verify a success notice still appears when the submitted form remains current.
+55. Start saving a plot, then cancel/reopen or edit the plot form before the POST resolves. Verify delayed success cannot close/reset the newer form or show stale success feedback, and delayed failure cannot replace newer-form feedback; when the submitted form remains current, verify normal reset and success behavior.
+56. Start saving a farm, then cancel/reopen or edit the farm form before the POST resolves. Verify delayed success cannot close/reset the newer form or show stale success feedback, and delayed failure cannot replace newer-form feedback; when the submitted form remains current, verify normal reset and success behavior.
 
 ### Scope and limitations
 
