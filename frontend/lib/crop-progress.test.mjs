@@ -13,6 +13,10 @@ test("crop age counts elapsed calendar days without timezone or DST arithmetic",
   assert.equal(getCropAgeDays("2026-10-31", localDate(2026, 11, 3)), 3);
 });
 
+test("does not calculate crop age before a browser-local date is available", () => {
+  assert.equal(getCropAgeDays("2026-11-02", null), null);
+});
+
 test("future and malformed planting dates do not produce an age", () => {
   assert.equal(getCropAgeDays("2026-11-04", localDate(2026, 11, 3)), null);
   assert.equal(getCropAgeDays("2026-02-29", localDate(2026, 3, 1)), null);

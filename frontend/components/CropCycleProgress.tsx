@@ -8,8 +8,8 @@ import { millisecondsUntilNextLocalMidnight } from "@/lib/local-calendar-clock.m
 type Props = { cropId: string; plantingDate: string; status: string };
 
 export default function CropCycleProgress({ cropId, plantingDate, status }: Props) {
-  const [today, setToday] = useState(() => new Date());
-  const ageDays = getCropAgeDays(plantingDate, today);
+  const [today, setToday] = useState<Date | null>(null);
+  const ageDays = today === null ? null : getCropAgeDays(plantingDate, today);
   const shouldLoadStages = shouldLoadGrowthStageCatalog(status, ageDays);
   const [stages, setStages] = useState<CropGrowthStage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,6 +72,7 @@ export default function CropCycleProgress({ cropId, plantingDate, status }: Prop
   if (status === "harvested") return <p className="inline-hint">Siklus selesai dipanen.</p>;
   if (status === "cancelled") return <p className="inline-hint">Siklus dibatalkan.</p>;
   if (status !== "active") return <p className="inline-hint">Status siklus belum dikenali; tahap tidak ditampilkan.</p>;
+  if (today === null) return <p className="inline-hint">Menyiapkan umur tanaman…</p>;
   if (ageDays === null) return <p className="inline-hint">Umur belum dihitung karena tanggal tanam berada di masa depan atau tidak valid.</p>;
 
   const stage = findGrowthStage(stages, ageDays);
