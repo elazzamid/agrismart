@@ -299,7 +299,7 @@ function FarmWorkspace({ farm, onBack }: { farm: Farm; onBack: () => void }) {
     try {
       await createCropCycle(plotId, { crop_id: cropId, variety_id: varietyId || null, planting_date: plantingDate });
       if (!mountedRef.current) return;
-      if (shouldApplyCycleFormResult(submittedFormSessionId, cycleFormSessionId.current)) {
+      if (isCurrentCycleFormSession(submittedFormSessionId, cycleFormSessionId.current)) {
         cycleFormSessionId.current += 1;
         setCycleFormPlot(null);
         setCropId("");
