@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isCurrentFormSession } from "./form-session.mjs";
+import { isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "./form-session.mjs";
 
 test("the current journal form accepts its own save result", () => {
   assert.equal(isCurrentFormSession(4, 4), true);
@@ -38,4 +38,52 @@ test("the current plot form accepts its own save result", () => {
 
 test("a delayed plot save cannot replace newer-form feedback", () => {
   assert.equal(isCurrentFormSession(11, 12), false);
+});
+
+test("a delayed farm failure cannot replace feedback for a newer form", () => {
+  assert.equal(isCurrentFormSession(9, 10), false);
+});
+
+test("a current farm save shows success feedback while the dashboard is visible", () => {
+  assert.equal(shouldShowFarmSaveNotice(12, 12, true), true);
+});
+
+test("a current farm save suppresses success feedback while the dashboard is hidden", () => {
+  assert.equal(shouldShowFarmSaveNotice(12, 12, false), false);
+});
+
+test("a stale farm save suppresses success feedback even when the dashboard is visible", () => {
+  assert.equal(shouldShowFarmSaveNotice(12, 13, true), false);
+});
+
+test("an unsafe farm form session cannot publish success feedback", () => {
+  assert.equal(shouldShowFarmSaveNotice(Number.NaN, 13, true), false);
+});
+
+test("a closed farm form can start a new session", () => {
+  assert.equal(shouldOpenFarmForm(false, false), true);
+});
+
+test("reopening an already-open form cannot invalidate a pending farm save", () => {
+  assert.equal(shouldOpenFarmForm(true, true, true), false);
+});
+
+test("an explicit mobile add action can start a new session after a failed save", () => {
+  assert.equal(shouldOpenFarmForm(true, false, true), true);
+});
+
+test("a repeated non-forced open action preserves the current farm form session", () => {
+  assert.equal(shouldOpenFarmForm(true, false, false), false);
+});
+
+test("a closed farm form cannot start a new session while its previous save is pending", () => {
+  assert.equal(shouldOpenFarmForm(false, true), false);
+});
+
+test("mobile force-new cannot invalidate a pending save after the form was canceled", () => {
+  assert.equal(shouldOpenFarmForm(false, true, true), false);
+});
+
+test("a canceled form can be reopened after the previous save settles", () => {
+  assert.equal(shouldOpenFarmForm(false, false), true);
 });

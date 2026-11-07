@@ -25,7 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
-import { isCurrentFormSession } from "@/lib/form-session.mjs";
+import { isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "@/lib/form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -357,6 +357,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [loading, setLoading] = useState(true);
   const [farmsLoaded, setFarmsLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [farmListError, setFarmListError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [farmName, setFarmName] = useState("");
   const [locationName, setLocationName] = useState("");
@@ -369,7 +370,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const refreshFarms = useCallback(async () => {
     const requestId = ++refreshRequestId.current;
     setLoading(true);
-    setError("");
+    setFarmListError("");
     try {
       const nextFarms = await listFarms();
       if (refreshRequestId.current !== requestId) return;
@@ -377,7 +378,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       setFarmsLoaded(true);
     } catch (err) {
       if (refreshRequestId.current !== requestId) return;
-      setError(err instanceof Error ? err.message : "Data kebun belum dapat dimuat.");
+      setFarmListError(err instanceof Error ? err.message : "Data kebun belum dapat dimuat.");
     } finally {
       if (refreshRequestId.current === requestId) setLoading(false);
     }
@@ -385,21 +386,50 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
   useEffect(() => { mountedRef.current = true; void refreshFarms(); return () => { mountedRef.current = false; refreshRequestId.current += 1; }; }, [refreshFarms]);
 
+  const dashboardVisibleRef = useRef(true);
+
+  function openFarm(farm: Farm) {
+    dashboardVisibleRef.current = false;
+    setSelectedFarm(farm);
+  }
+
+  function openFarmForm(forceNew = false) {
+    dashboardVisibleRef.current = true;
+    if (!shouldOpenFarmForm(showForm, saving, forceNew)) return;
+    farmFormSessionId.current += 1;
+    setError("");
+    setNotice("");
+    setShowForm(true);
+  }
+
+  function closeFarmForm() {
+    farmFormSessionId.current += 1;
+    setShowForm(false);
+    setFarmName("");
+    setLocationName("");
+    setError("");
+  }
+
   async function submitFarm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submittedFormSessionId = farmFormSessionId.current;
+    let postSettled = false;
     setSaving(true);
     setError("");
     setNotice("");
     try {
       await createFarm({ name: farmName.trim(), location_name: locationName.trim() });
+      postSettled = true;
       if (!mountedRef.current) return;
-      if (isCurrentFormSession(submittedFormSessionId, farmFormSessionId.current)) {
+      setSaving(false);
+      const formSessionIsCurrent = isCurrentFormSession(submittedFormSessionId, farmFormSessionId.current);
+      const shouldNotifySuccess = shouldShowFarmSaveNotice(submittedFormSessionId, farmFormSessionId.current, dashboardVisibleRef.current);
+      if (formSessionIsCurrent) {
         farmFormSessionId.current += 1;
         setFarmName("");
         setLocationName("");
         setShowForm(false);
-        setNotice("Kebun berhasil ditambahkan.");
+        if (shouldNotifySuccess) setNotice("Kebun berhasil ditambahkan.");
       }
       await refreshFarms();
     } catch (err) {
@@ -408,7 +438,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         setError(err instanceof Error ? err.message : "Kebun belum berhasil disimpan.");
       }
     } finally {
-      if (mountedRef.current) setSaving(false);
+      if (mountedRef.current && !postSettled) setSaving(false);
     }
   }
 
@@ -431,25 +461,27 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
           <div className="breadcrumb">Ruang kerja <span>/</span> <strong>Ringkasan</strong></div>
           <div className="topbar-right"><span className="online-pill"><span className="status-dot" /> Data tersinkron saat dibuka</span><div className="avatar small">{firstName.slice(0, 1).toUpperCase()}</div></div>
         </header>
-        {selectedFarm ? <FarmWorkspace key={selectedFarm.id} farm={selectedFarm} onBack={() => setSelectedFarm(null)} /> : <div className="dashboard-content">
+        {selectedFarm ? <FarmWorkspace key={selectedFarm.id} farm={selectedFarm} onBack={() => { dashboardVisibleRef.current = true; setSelectedFarm(null); }} /> : <div className="dashboard-content">
           <section className="welcome-row">
             <div><span className="eyebrow muted">RINGKASAN PERTANIAN</span><h1>Selamat datang kembali<span className="period">.</span></h1><p>Mulai dari mana Anda ingin merawat kebun hari ini?</p></div>
             <div className="date-chip"><span>◷</span> Ruang kerja pribadi</div>
           </section>
           <section className="hero-card">
-            <div className="hero-copy"><span className="hero-kicker">LANGKAH PERTAMA</span><h2>Semua cerita kebun<br />dimulai dari <em>catatan.</em></h2><p>Tambahkan kebun Anda, lalu lanjutkan dengan petak dan siklus tanam agar aktivitas, biaya, serta panen tercatat rapi.</p><button className="button light" onClick={() => { farmFormSessionId.current += 1; setShowForm(true); }}>+ Tambah kebun</button></div>
+            <div className="hero-copy"><span className="hero-kicker">LANGKAH PERTAMA</span><h2>Semua cerita kebun<br />dimulai dari <em>catatan.</em></h2><p>Tambahkan kebun Anda, lalu lanjutkan dengan petak dan siklus tanam agar aktivitas, biaya, serta panen tercatat rapi.</p><button className="button light" onClick={() => openFarmForm()}>+ Tambah kebun</button></div>
             <div className="hero-art" aria-hidden="true"><div className="sun" /><div className="hill hill-back" /><div className="hill hill-front" /><div className="plant plant-a"><i /><i /><i /><b /></div><div className="plant plant-b"><i /><i /><i /><b /></div><div className="plant plant-c"><i /><i /><i /><b /></div><div className="art-ground" /></div>
           </section>
-          <section className="section-heading"><div><span className="eyebrow muted">DATA ANDA</span><h2>Kebun saya <span className="count">{farms.length}</span></h2></div><button className="button outline" onClick={() => { farmFormSessionId.current += 1; setShowForm(!showForm); }}>{showForm ? "Tutup formulir" : "+ Kebun baru"}</button></section>
+          <section className="section-heading"><div><span className="eyebrow muted">DATA ANDA</span><h2>Kebun saya <span className="count">{farms.length}</span></h2></div><button className="button outline" onClick={() => showForm ? closeFarmForm() : openFarmForm()}>{showForm ? "Tutup formulir" : "+ Kebun baru"}</button></section>
           {notice && <p className="success-note" role="status">{notice}</p>}
-          {error && <div className="error-banner" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshFarms()}>Coba lagi</button></div>}
-          {showForm && <form className="farm-form" onSubmit={submitFarm}><div className="form-title"><div><strong>Tambahkan kebun</strong><p>Mulai dengan nama dan lokasi yang mudah Anda kenali.</p></div><span className="form-step">01 / 01</span></div><div className="form-grid"><Field label="Nama kebun" placeholder="Contoh: Kebun Cabai Belakang" value={farmName} onChange={e => { farmFormSessionId.current += 1; setFarmName(e.target.value); }} required maxLength={120} /><Field label="Lokasi (opsional)" placeholder="Desa, kecamatan, kabupaten" value={locationName} onChange={e => { farmFormSessionId.current += 1; setLocationName(e.target.value); }} maxLength={160} /></div><div className="form-actions"><button type="button" className="button ghost" onClick={() => { farmFormSessionId.current += 1; setShowForm(false); }}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan kebun ↗"}</button></div></form>}
-          {loading && !farmsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat daftar kebun…</div> : !farmsLoaded ? null : farms.length === 0 ? <div className="empty-state"><div className="empty-icon">⌂</div><h3>Belum ada kebun tercatat</h3><p>Tambahkan kebun pertama Anda untuk mulai menyusun catatan budidaya.</p><button className="button primary" onClick={() => { farmFormSessionId.current += 1; setShowForm(true); }}>Tambahkan kebun pertama ↗</button></div> : <div className="farm-grid">{farms.map((farm, index) => <article className="farm-card" key={farm.id} role="button" tabIndex={0} onClick={() => setSelectedFarm(farm)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedFarm(farm); } }} aria-label={`Buka kebun ${farm.name}`}><div className={`farm-card-art art-${index % 3}`}><span className="farm-badge">KEBUN {String(index + 1).padStart(2, "0")}</span><span className="farm-symbol">⌁</span></div><div className="farm-card-body"><div className="farm-card-title"><h3>{farm.name}</h3><span className="arrow-mark">↗</span></div><p className="farm-location"><span>⌖</span> {farm.location_name || "Lokasi belum ditambahkan"}</p><div className="farm-card-foot"><span><span className="status-dot" /> Terdaftar</span><span className="farm-id">ID · {farm.id.slice(0, 8)}</span></div></div></article>)}</div>}
+          {farmListError && <div className="error-banner" role="alert"><span>{farmListError}</span><button className="text-button" onClick={() => void refreshFarms()}>Coba lagi</button></div>}
+          {error && <div className="error-banner" role="alert"><span>{error}</span></div>}
+          {shouldShowFarmSavePending(showForm, saving) && <section className="next-step" role="status"><div className="next-step-icon"><span className="spinner" /></div><div><strong>Penyimpanan kebun masih diproses</strong><p>Form baru dapat dibuka setelah proses sebelumnya selesai.</p></div></section>}
+          {showForm && <form className="farm-form" onSubmit={submitFarm}><div className="form-title"><div><strong>Tambahkan kebun</strong><p>Mulai dengan nama dan lokasi yang mudah Anda kenali.</p></div><span className="form-step">01 / 01</span></div><div className="form-grid"><Field label="Nama kebun" placeholder="Contoh: Kebun Cabai Belakang" value={farmName} onChange={e => { farmFormSessionId.current += 1; setFarmName(e.target.value); }} required maxLength={120} /><Field label="Lokasi (opsional)" placeholder="Desa, kecamatan, kabupaten" value={locationName} onChange={e => { farmFormSessionId.current += 1; setLocationName(e.target.value); }} maxLength={160} /></div><div className="form-actions"><button type="button" className="button ghost" onClick={closeFarmForm}>Batal</button><button className="button primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan kebun ↗"}</button></div></form>}
+          {loading && !farmsLoaded ? <div className="loading-card"><span className="spinner" /> Memuat daftar kebun…</div> : !farmsLoaded ? null : farms.length === 0 ? <div className="empty-state"><div className="empty-icon">⌂</div><h3>Belum ada kebun tercatat</h3><p>Tambahkan kebun pertama Anda untuk mulai menyusun catatan budidaya.</p><button className="button primary" onClick={() => openFarmForm()}>Tambahkan kebun pertama ↗</button></div> : <div className="farm-grid">{farms.map((farm, index) => <article className="farm-card" key={farm.id} role="button" tabIndex={0} onClick={() => openFarm(farm)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openFarm(farm); } }} aria-label={`Buka kebun ${farm.name}`}><div className={`farm-card-art art-${index % 3}`}><span className="farm-badge">KEBUN {String(index + 1).padStart(2, "0")}</span><span className="farm-symbol">⌁</span></div><div className="farm-card-body"><div className="farm-card-title"><h3>{farm.name}</h3><span className="arrow-mark">↗</span></div><p className="farm-location"><span>⌖</span> {farm.location_name || "Lokasi belum ditambahkan"}</p><div className="farm-card-foot"><span><span className="status-dot" /> Terdaftar</span><span className="farm-id">ID · {farm.id.slice(0, 8)}</span></div></div></article>)}</div>}
           <section className="next-step"><div className="next-step-icon">✳</div><div><strong>Langkah selanjutnya: petak dan siklus tanam</strong><p>Setelah kebun dibuat, tahap berikutnya adalah mencatat petak, memilih tanaman, dan tanggal tanam.</p></div><span className="coming-soon">BERIKUTNYA</span></section>
           <footer className="dashboard-footer"><span>AgriSmart <span>·</span> Catatan tumbuh, keputusan lebih baik.</span><span>Data kebun hanya ditampilkan untuk akun Anda.</span></footer>
         </div>}
       </main>
-      <nav className="mobile-nav" aria-label="Navigasi utama"><span className="mobile-nav-active">⌂<small>Ringkasan</small></span><button onClick={() => { setSelectedFarm(null); farmFormSessionId.current += 1; setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>＋<small>Tambah kebun</small></button><button onClick={onSignOut}>↪<small>Keluar</small></button></nav>
+      <nav className="mobile-nav" aria-label="Navigasi utama"><span className="mobile-nav-active">⌂<small>Ringkasan</small></span><button onClick={() => { setSelectedFarm(null); openFarmForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>＋<small>Tambah kebun</small></button><button onClick={onSignOut}>↪<small>Keluar</small></button></nav>
     </div>
   );
 }
