@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "./form-session.mjs";
+import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "./form-session.mjs";
 
 test("the current journal form accepts its own save result", () => {
   assert.equal(isCurrentFormSession(4, 4), true);
@@ -86,4 +86,22 @@ test("mobile force-new cannot invalidate a pending save after the form was cance
 
 test("a canceled form can be reopened after the previous save settles", () => {
   assert.equal(shouldOpenFarmForm(false, false), true);
+});
+
+test("a dismissed farm save reports successful completion", () => {
+  assert.equal(getDismissedFarmSaveOutcome(true, true, true), "success");
+});
+
+test("a dismissed farm save reports failed completion", () => {
+  assert.equal(getDismissedFarmSaveOutcome(true, false, true), "error");
+  assert.equal(getDismissedFarmSaveOutcome(true, false, false), "error");
+});
+
+test("a dismissed farm save does not queue success feedback while the dashboard is hidden", () => {
+  assert.equal(getDismissedFarmSaveOutcome(true, true, false), null);
+});
+
+test("an active farm form does not receive a dismissed-save outcome", () => {
+  assert.equal(getDismissedFarmSaveOutcome(false, true, true), null);
+  assert.equal(getDismissedFarmSaveOutcome(false, false, true), null);
 });

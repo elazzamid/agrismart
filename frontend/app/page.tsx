@@ -25,7 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
-import { isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "@/lib/form-session.mjs";
+import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "@/lib/form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -363,6 +363,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [locationName, setLocationName] = useState("");
   const [saving, setSaving] = useState(false);
   const farmFormSessionId = useRef(0);
+  const farmFormDismissedDuringSaveRef = useRef(false);
   const [notice, setNotice] = useState("");
 
   const mountedRef = useRef(false);
@@ -396,6 +397,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   function openFarmForm(forceNew = false) {
     dashboardVisibleRef.current = true;
     if (!shouldOpenFarmForm(showForm, saving, forceNew)) return;
+    farmFormDismissedDuringSaveRef.current = false;
     farmFormSessionId.current += 1;
     setError("");
     setNotice("");
@@ -403,6 +405,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   }
 
   function closeFarmForm() {
+    farmFormDismissedDuringSaveRef.current = saving;
     farmFormSessionId.current += 1;
     setShowForm(false);
     setFarmName("");
@@ -414,6 +417,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     event.preventDefault();
     const submittedFormSessionId = farmFormSessionId.current;
     let postSettled = false;
+    let formWasDismissed = false;
     setSaving(true);
     setError("");
     setNotice("");
@@ -422,20 +426,30 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       postSettled = true;
       if (!mountedRef.current) return;
       setSaving(false);
+      formWasDismissed = farmFormDismissedDuringSaveRef.current;
+      farmFormDismissedDuringSaveRef.current = false;
       const formSessionIsCurrent = isCurrentFormSession(submittedFormSessionId, farmFormSessionId.current);
       const shouldNotifySuccess = shouldShowFarmSaveNotice(submittedFormSessionId, farmFormSessionId.current, dashboardVisibleRef.current);
+      const dismissedSaveOutcome = getDismissedFarmSaveOutcome(formWasDismissed, true, dashboardVisibleRef.current);
       if (formSessionIsCurrent) {
         farmFormSessionId.current += 1;
         setFarmName("");
         setLocationName("");
         setShowForm(false);
         if (shouldNotifySuccess) setNotice("Kebun berhasil ditambahkan.");
+      } else if (dismissedSaveOutcome === "success") {
+        setNotice("Kebun berhasil disimpan setelah formulir ditutup.");
       }
       await refreshFarms();
     } catch (err) {
       if (!mountedRef.current) return;
+      formWasDismissed = farmFormDismissedDuringSaveRef.current;
+      farmFormDismissedDuringSaveRef.current = false;
+      const dismissedSaveOutcome = getDismissedFarmSaveOutcome(formWasDismissed, false, dashboardVisibleRef.current);
       if (isCurrentFormSession(submittedFormSessionId, farmFormSessionId.current)) {
         setError(err instanceof Error ? err.message : "Kebun belum berhasil disimpan.");
+      } else if (dismissedSaveOutcome === "error") {
+        setError("Penyimpanan kebun gagal setelah formulir ditutup. Buka formulir kembali untuk mencoba lagi.");
       }
     } finally {
       if (mountedRef.current && !postSettled) setSaving(false);

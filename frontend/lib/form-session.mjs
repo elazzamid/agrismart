@@ -16,3 +16,9 @@ export function shouldOpenFarmForm(isFormOpen, isSaving, forceNew = false) {
 export function shouldShowFarmSavePending(isFormOpen, isSaving) {
   return isFormOpen !== true && isSaving === true;
 }
+
+export function getDismissedFarmSaveOutcome(formWasDismissed, succeeded, dashboardVisible) {
+  if (formWasDismissed !== true) return null;
+  if (succeeded === true) return dashboardVisible === true ? "success" : null;
+  return "error";
+}
