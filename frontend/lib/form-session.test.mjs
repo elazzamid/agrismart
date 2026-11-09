@@ -105,3 +105,15 @@ test("an active farm form does not receive a dismissed-save outcome", () => {
   assert.equal(getDismissedFarmSaveOutcome(false, true, true), null);
   assert.equal(getDismissedFarmSaveOutcome(false, false, true), null);
 });
+
+test("a dismissed farm form shows pending status while its save is in flight", () => {
+  assert.equal(shouldShowFarmSavePending(false, true), true);
+});
+
+test("an open farm form does not show the dismissed-save pending status", () => {
+  assert.equal(shouldShowFarmSavePending(true, true), false);
+});
+
+test("a dismissed farm form stops showing pending status after the save settles", () => {
+  assert.equal(shouldShowFarmSavePending(false, false), false);
+});
