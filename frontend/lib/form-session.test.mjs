@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "./form-session.mjs";
+import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldResetFarmFormDraft, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "./form-session.mjs";
 
 test("the current journal form accepts its own save result", () => {
   assert.equal(isCurrentFormSession(4, 4), true);
@@ -116,4 +116,10 @@ test("an open farm form does not show the dismissed-save pending status", () => 
 
 test("a dismissed farm form stops showing pending status after the save settles", () => {
   assert.equal(shouldShowFarmSavePending(false, false), false);
+});
+
+test("a forced new form clears a prior draft only after the save has settled", () => {
+  assert.equal(shouldResetFarmFormDraft(true, false), true);
+  assert.equal(shouldResetFarmFormDraft(true, true), false);
+  assert.equal(shouldResetFarmFormDraft(false, false), false);
 });
