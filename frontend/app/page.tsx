@@ -25,7 +25,7 @@ import {
   saveToken,
   User,
 } from "@/lib/api";
-import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "@/lib/form-session.mjs";
+import { getDismissedFarmSaveOutcome, isCurrentFormSession, shouldOpenFarmForm, shouldResetFarmFormDraft, shouldShowFarmSaveNotice, shouldShowFarmSavePending } from "@/lib/form-session.mjs";
 
 type AuthMode = "login" | "register";
 
@@ -399,6 +399,10 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     if (!shouldOpenFarmForm(showForm, saving, forceNew)) return;
     farmFormDismissedDuringSaveRef.current = false;
     farmFormSessionId.current += 1;
+    if (shouldResetFarmFormDraft(forceNew, saving)) {
+      setFarmName("");
+      setLocationName("");
+    }
     setError("");
     setNotice("");
     setShowForm(true);
