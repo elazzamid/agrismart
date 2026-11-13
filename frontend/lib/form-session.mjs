@@ -13,6 +13,10 @@ export function shouldOpenFarmForm(isFormOpen, isSaving, forceNew = false) {
   return isSaving !== true && (isFormOpen !== true || forceNew === true);
 }
 
+export function shouldResetFarmFormDraft(forceNew, isSaving) {
+  return forceNew === true && isSaving !== true;
+}
+
 export function shouldShowFarmSavePending(isFormOpen, isSaving) {
   return isFormOpen !== true && isSaving === true;
 }
