@@ -15,8 +15,22 @@ db_psql() {
   docker exec -i "$DB_CONTAINER" sh -ec 'exec psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"' sh "$@"
 }
 
-printf '%s\n' "Checking PostgreSQL container: $DB_CONTAINER"
-docker exec "$DB_CONTAINER" sh -ec 'exec pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+printf '%s\n' "Waiting for PostgreSQL TCP readiness: $DB_CONTAINER"
+attempt=1
+while [ "$attempt" -le 30 ]; do
+  if docker exec "$DB_CONTAINER" sh -ec 'exec pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; then
+    break
+  fi
+
+  if [ "$attempt" -eq 30 ]; then
+    echo "PostgreSQL did not become ready over TCP after 60 seconds" >&2
+    docker logs "$DB_CONTAINER" >&2 || true
+    exit 1
+  fi
+
+  attempt=$((attempt + 1))
+  sleep 2
+done
 
 printf '%s\n' "Checking required tables..."
 TABLE_COUNT="$(db_psql -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' AND table_name IN ('users','farmer_profiles','farms','farm_plots','crops','crop_varieties','crop_growth_stages','crop_cycles','farm_activities','farm_inputs','farm_expenses','farm_harvests');")"
